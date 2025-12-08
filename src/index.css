@@ -1,5 +1,10 @@
 @import "tailwindcss"; 
 
+/* Safe area support para móviles (notch, barras del navegador) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
 @keyframes blob {
   0% {
     transform: translate(0px, 0px) scale(1);

@@ -51,7 +51,7 @@ const ClienteLayout = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <header ref={vantaRef} className="shadow-lg px-6 py-4 flex justify-between items-center z-10 relative overflow-hidden">
         {/* Overlay para legibilidad */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-950 via-transparent to-blue-950 bg-opacity-50 pointer-events-none z-0"></div>
@@ -70,11 +70,11 @@ const ClienteLayout = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 pb-24">
+      <main className="flex-1 overflow-y-auto p-4 pb-20 mb-16">
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 shadow-lg">
+      <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 shadow-lg pb-safe">
         <ul className="flex justify-around items-center h-16">
           <li className="w-full">
             <button
