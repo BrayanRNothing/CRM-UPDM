@@ -117,7 +117,10 @@ function Servicios() {
   };
 
   // Filtrar servicios
-  const cotizacionesAprobadas = servicios.filter(s => s.estadoCliente === 'aprobado' && !s.tecnico);
+  // Cotizaciones aprobadas: incluye aprobadas por clientes (estadoCliente: 'aprobado') Y aprobadas por técnicos (estado: 'aprobado')
+  const cotizacionesAprobadas = servicios.filter(s => 
+    (s.estadoCliente === 'aprobado' || s.estado === 'aprobado') && !s.tecnico
+  );
   const serviciosEnCurso = servicios.filter(s => s.estado === 'en-proceso' && s.tecnico);
   const serviciosFinalizados = servicios.filter(s => s.estado === 'finalizado');
 
@@ -137,7 +140,7 @@ function Servicios() {
           >
             <div className="text-7xl mb-4 animate-bounce">👤</div>
             <h2 className="text-2xl font-bold mb-2">Asignar Técnico</h2>
-            <p className="text-blue-100 text-sm">A cotización aprobada</p>
+            <p className="text-blue-100 text-sm">Servicios aprobados (clientes y técnicos)</p>
             {cotizacionesAprobadas.length > 0 && (
               <div className="mt-4 bg-blue-700/80 rounded-full px-6 py-2">
                 <span className="text-2xl font-bold">{cotizacionesAprobadas.length}</span>
@@ -201,8 +204,8 @@ function Servicios() {
         </button>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">👤 Asignar Técnico a Cotización</h1>
-          <p className="text-gray-500 text-sm">Selecciona una cotización aprobada y asigna un técnico</p>
+          <h1 className="text-3xl font-bold text-gray-800">👤 Asignar Técnico a Servicio</h1>
+          <p className="text-gray-500 text-sm">Cotizaciones aprobadas por clientes y técnicos</p>
         </div>
 
         <form onSubmit={handleAsignar} className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
@@ -212,7 +215,9 @@ function Servicios() {
               <select value={formAsignar.cotizacionId} onChange={(e) => setFormAsignar({...formAsignar, cotizacionId: e.target.value})} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
                 <option value="">Selecciona una cotización</option>
                 {cotizacionesAprobadas.map(cot => (
-                  <option key={cot.id} value={cot.id}>{cot.titulo} - {cot.cliente} (${cot.precioEstimado})</option>
+                  <option key={cot.id} value={cot.id}>
+                    {cot.titulo} - {cot.cliente ? `👤 ${cot.cliente}` : `🔧 ${cot.usuario}`} {cot.precio || cot.precioEstimado ? `($${cot.precio || cot.precioEstimado})` : ''}
+                  </option>
                 ))}
               </select>
             </div>
