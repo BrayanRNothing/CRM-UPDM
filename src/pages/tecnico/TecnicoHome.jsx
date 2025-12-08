@@ -28,16 +28,10 @@ const TecnicoHome = () => {
       setTareas(trabajoTodo);
 
       // FILTRO B: MIS SOLICITUDES (Lo que yo pedí: equipos, garantias, cotizaciones)
-      // Incluimos TODAS las solicitudes creadas por el técnico
+      // Incluimos TODAS las solicitudes creadas por el técnico, independientemente del estado
       const misPedidos = data.filter(item => {
-        // Verificar si el técnico lo creó (campo usuario o cliente)
-        const creadoPorMi = item.usuario === userGuardado?.nombre || 
-                           (item.cliente === userGuardado?.nombre && !item.tecnico);
-        
-        // Excluir trabajos que le fueron asignados como técnico
-        const noEsTrabajo = item.tecnico !== userGuardado?.nombre;
-        
-        return creadoPorMi && noEsTrabajo;
+        // El técnico lo creó (campo usuario)
+        return item.usuario === userGuardado?.nombre;
       });
       setMisSolicitudes(misPedidos);
 
@@ -143,22 +137,32 @@ const TecnicoHome = () => {
       return (
         <div className="space-y-3">
           {misSolicitudes.map(sol => (
-            <div key={sol.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center">
-              <div>
-                <h4 className="font-bold text-gray-800">{sol.titulo}</h4>
-                <p className="text-xs text-gray-500 capitalize">Tipo: {sol.tipo} • {sol.fecha}</p>
-                {/* RESPUESTA DEL ADMIN */}
-                {sol.estado === 'aprobado' && <p className="text-xs text-green-600 font-bold mt-1">✅ Autorizado por Admin</p>}
-                {sol.estado === 'rechazado' && <p className="text-xs text-red-600 font-bold mt-1">❌ Rechazada</p>}
+            <div key={sol.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <h4 className="font-bold text-gray-800">{sol.titulo}</h4>
+                  <p className="text-xs text-gray-500 capitalize">Tipo: {sol.tipo} • {sol.fecha}</p>
+                </div>
+                <span className={`px-3 py-1 text-xs font-bold rounded-full capitalize whitespace-nowrap
+                  ${sol.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-800' : ''}
+                  ${sol.estado === 'cotizado' ? 'bg-blue-100 text-blue-800' : ''}
+                  ${sol.estado === 'aprobado' ? 'bg-green-100 text-green-800' : ''}
+                  ${sol.estado === 'rechazado' ? 'bg-red-100 text-red-800' : ''}
+                `}>
+                  {sol.estado}
+                </span>
               </div>
               
-              <span className={`px-3 py-1 text-xs font-bold rounded-full capitalize
-                ${sol.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-800' : ''}
-                ${sol.estado === 'aprobado' ? 'bg-green-100 text-green-800' : ''}
-                ${sol.estado === 'rechazado' ? 'bg-red-100 text-red-800' : ''}
-              `}>
-                {sol.estado}
-              </span>
+              {/* RESPUESTA DEL ADMIN */}
+              {sol.estado === 'cotizado' && sol.respuestaAdmin && (
+                <div className="mt-2 p-3 bg-blue-50 rounded border border-blue-200">
+                  <p className="text-xs font-bold text-blue-800 mb-1">💬 Respuesta del Admin:</p>
+                  <p className="text-sm text-gray-700">{sol.respuestaAdmin}</p>
+                  {sol.precio && <p className="text-sm font-bold text-blue-900 mt-1">💰 Precio: ${sol.precio}</p>}
+                </div>
+              )}
+              {sol.estado === 'aprobado' && <p className="text-xs text-green-600 font-bold mt-2">✅ Autorizado por Admin</p>}
+              {sol.estado === 'rechazado' && <p className="text-xs text-red-600 font-bold mt-2">❌ Rechazada</p>}
             </div>
           ))}
         </div>
