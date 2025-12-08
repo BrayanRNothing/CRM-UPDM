@@ -93,7 +93,7 @@ const AdminLayout = () => {
     <div className="flex h-screen bg-gray-100">
       
       {/* 1. SIDEBAR (Barra Lateral) con Vanta.js */}
-      <aside ref={vantaRef} className="w-64 border-r border-blue-900 border-opacity-50 hidden md:flex flex-col relative overflow-hidden">
+      <aside ref={vantaRef} className="w-64 hidden md:flex flex-col relative overflow-hidden">
         
         {/* Overlay para mejorar legibilidad */}
         <div className="absolute inset-0 bg-gradient-to-b from-blue-950 via-transparent to-blue-950 bg-opacity-40 pointer-events-none z-0"></div>
@@ -101,7 +101,7 @@ const AdminLayout = () => {
         {/* Contenido del sidebar */}
         <div className="relative z-10 flex flex-col h-full">
           {/* Logo o Título */}
-          <div className="h-16 flex items-center justify-center border-b border-blue-400 border-opacity-30">
+          <div className="h-16 flex items-center justify-center mb-2">
             <h2 className="text-xl font-bold text-white tracking-wide drop-shadow-[0_2px_8px_rgba(37,99,235,0.5)]">INFINIGUARD ADMIN</h2>
           </div>
 
@@ -127,13 +127,13 @@ const AdminLayout = () => {
           </nav>
 
           {/* Botón Salir */}
-          <div className="p-4 border-t border-blue-400 border-opacity-30">
+          <div className="p-4">
             <button 
               onClick={() => {
                 localStorage.removeItem('user');
                 window.location.href = '/';
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-300 hover:bg-red-500 hover:bg-opacity-25 hover:text-red-200 rounded-lg transition duration-200 backdrop-blur-sm border border-red-500 border-opacity-20"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-95"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
