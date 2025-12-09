@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 function CotizacionForm({ titulo, tipoServicio }) {
   const [preview, setPreview] = useState(null);
+  const [fotoBase64, setFotoBase64] = useState(null);
   const [formDatos, setFormDatos] = useState({
     nombreProyecto: '',
     modelo: '',
@@ -11,7 +12,21 @@ function CotizacionForm({ titulo, tipoServicio }) {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validar tamaño (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen es muy grande. Máximo 5MB.');
+        return;
+      }
+
+      // Crear preview
       setPreview(URL.createObjectURL(file));
+
+      // Convertir a Base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFotoBase64(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -35,7 +50,8 @@ function CotizacionForm({ titulo, tipoServicio }) {
       tipo: tipoServicio, // Viene de las props (ej: 'equipo')
       usuario: usuario ? usuario.nombre : 'Usuario Desconocido',
       modelo: formDatos.modelo,
-      cantidad: formDatos.cantidad
+      cantidad: formDatos.cantidad,
+      foto: fotoBase64 || null // Incluimos la foto en Base64
     };
 
     try {
@@ -50,6 +66,7 @@ function CotizacionForm({ titulo, tipoServicio }) {
         // Limpiar form
         setFormDatos({ nombreProyecto: '', modelo: '', cantidad: 1 });
         setPreview(null);
+        setFotoBase64(null);
       } else {
         alert("Error al enviar la solicitud");
       }

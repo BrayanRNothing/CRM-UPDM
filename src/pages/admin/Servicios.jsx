@@ -235,6 +235,12 @@ function Servicios() {
                     {cot.cantidad && <p className="text-sm text-gray-600">🔢 Cantidad: {cot.cantidad}</p>}
                     {cot.direccion && <p className="text-sm text-gray-600">📍 {cot.direccion}</p>}
                     {cot.telefono && <p className="text-sm text-gray-600">📞 {cot.telefono}</p>}
+                    {cot.foto && (
+                      <div className="mt-3">
+                        <p className="text-xs font-bold text-gray-700 mb-1">📸 Foto adjunta:</p>
+                        <img src={cot.foto} alt="Evidencia" className="w-full max-w-xs h-48 object-cover rounded-lg border border-gray-300 shadow-sm" />
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-green-600">${cot.precio || cot.precioEstimado || 'N/A'}</p>
