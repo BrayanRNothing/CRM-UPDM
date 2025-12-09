@@ -128,6 +128,63 @@ app.get('/api/usuarios', (req, res) => {
   res.json(usuarios);
 });
 
+// RUTA 6: Crear nuevo usuario
+app.post('/api/usuarios', (req, res) => {
+  const { nombre, email, password, rol } = req.body;
+  
+  // Verificar si el email ya existe
+  const existe = usuarios.find(u => u.email === email);
+  if (existe) {
+    return res.status(400).json({ success: false, message: 'El email ya está registrado' });
+  }
+  
+  const nuevoUsuario = {
+    id: Date.now(),
+    nombre,
+    email,
+    password,
+    rol
+  };
+  
+  usuarios.push(nuevoUsuario);
+  res.json({ success: true, user: nuevoUsuario });
+});
+
+// RUTA 7: Actualizar usuario
+app.put('/api/usuarios/:id', (req, res) => {
+  const { id } = req.params;
+  const { nombre, email, password, rol } = req.body;
+  
+  const index = usuarios.findIndex(u => u.id == id);
+  
+  if (index !== -1) {
+    // Si se proporciona nueva contraseña, actualizarla
+    if (password && password.trim() !== '') {
+      usuarios[index] = { ...usuarios[index], nombre, email, password, rol };
+    } else {
+      // Mantener contraseña anterior
+      usuarios[index] = { ...usuarios[index], nombre, email, rol };
+    }
+    
+    res.json({ success: true, user: usuarios[index] });
+  } else {
+    res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+  }
+});
+
+// RUTA 8: Eliminar usuario
+app.delete('/api/usuarios/:id', (req, res) => {
+  const { id } = req.params;
+  const index = usuarios.findIndex(u => u.id == id);
+  
+  if (index !== -1) {
+    usuarios.splice(index, 1);
+    res.json({ success: true, message: 'Usuario eliminado' });
+  } else {
+    res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+  }
+});
+
 // Arrancar
 app.listen(PORT, () => {
   console.log(`\n🚀 Servidor TEMPORAL corriendo en: http://localhost:${PORT}`);
