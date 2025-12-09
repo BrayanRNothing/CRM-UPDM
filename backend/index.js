@@ -6,7 +6,8 @@ const PORT = 4000; // El puerto donde vivirá tu servidor
 
 // Middlewares
 app.use(cors()); // Permite que React (puerto 5173) hable con Node (puerto 4000)
-app.use(express.json()); // Entiende JSON
+app.use(express.json({ limit: '10mb' })); // Entiende JSON y permite hasta 10MB (para imágenes Base64)
+app.use(express.urlencoded({ limit: '10mb', extended: true })); // Para formularios con imágenes
 
 // ==========================================
 // 🧠 BASE DE DATOS FALSA (En Memoria RAM)
