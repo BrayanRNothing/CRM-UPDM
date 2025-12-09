@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import Avatar from '../components/ui/Avatar';
+import Avatar from '../../components/ui/Avatar';
 
 const ClienteHome = () => {
   const [activeTab, setActiveTab] = useState('pendientes'); // pendientes | cotizadas | aprobadas | rechazadas | home | solicitar
