@@ -1,15 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import CELLS from 'vanta/dist/vanta.cells.min.js';
+import Avatar from '../components/ui/Avatar';
 
 const DistribuidorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const vantaRef = useRef(null);
   const vantaInstanceRef = useRef(null);
+  const [usuario, setUsuario] = useState(null);
 
   useEffect(() => {
+    // Cargar usuario
+    const userGuardado = JSON.parse(localStorage.getItem('user'));
+    setUsuario(userGuardado);
     if (vantaRef.current && !vantaInstanceRef.current) {
       try {
         vantaInstanceRef.current = CELLS({
@@ -58,8 +63,14 @@ const DistribuidorLayout = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-950 via-transparent to-blue-950 bg-opacity-50 pointer-events-none z-0"></div>
         
         <div className="relative z-10 flex justify-between items-center w-full">
-          <h2 className="text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(37,99,235,0.5)]">📦 Panel Distribuidor</h2>
-          <button 
+          <div className="flex items-center gap-3">
+            {usuario && <Avatar name={usuario.nombre} size="md" />}
+            <div>
+              <h2 className="text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(37,99,235,0.5)]">🏪 Portal Distribuidor</h2>
+              {usuario && <p className="text-xs text-blue-200">{usuario.nombre}</p>}
+            </div>
+          </div>
+          <button
             onClick={() => {
               localStorage.removeItem('user');
               window.location.href = '/';

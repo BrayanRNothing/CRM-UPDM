@@ -1,14 +1,19 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import CELLS from 'vanta/dist/vanta.cells.min.js';
+import Avatar from '../components/ui/Avatar';
 
 const AdminLayout = () => {
   const location = useLocation();
   const vantaRef = useRef(null);
   const vantaInstanceRef = useRef(null);
+  const [usuario, setUsuario] = useState(null);
 
   useEffect(() => {
+    // Cargar usuario
+    const userGuardado = JSON.parse(localStorage.getItem('user'));
+    setUsuario(userGuardado);
     if (vantaRef.current && !vantaInstanceRef.current) {
       try {
         vantaInstanceRef.current = CELLS({
@@ -104,6 +109,19 @@ const AdminLayout = () => {
           <div className="h-16 flex items-center justify-center mb-2">
             <h2 className="text-xl font-bold text-white tracking-wide drop-shadow-[0_2px_8px_rgba(37,99,235,0.5)]">INFINIGUARD ADMIN</h2>
           </div>
+
+          {/* Perfil del Usuario */}
+          {usuario && (
+            <div className="px-4 py-3 mb-2">
+              <div className="bg-blue-500 bg-opacity-20 backdrop-blur-sm border border-blue-400 border-opacity-30 rounded-lg p-3 flex items-center gap-3">
+                <Avatar name={usuario.nombre} size="md" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">{usuario.nombre}</p>
+                  <p className="text-blue-200 text-xs truncate">{usuario.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Menú de Navegación */}
           <nav className="flex-1 overflow-y-auto py-4">

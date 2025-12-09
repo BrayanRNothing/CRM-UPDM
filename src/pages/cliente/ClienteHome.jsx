@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import Avatar from '../components/ui/Avatar';
 
 const ClienteHome = () => {
   const [activeTab, setActiveTab] = useState('pendientes'); // pendientes | cotizadas | aprobadas | rechazadas | home | solicitar
@@ -127,8 +128,13 @@ const ClienteHome = () => {
   const renderHome = () => (
     <div className="space-y-6">
       <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-        <h2 className="text-2xl font-bold mb-2">👋 Bienvenido</h2>
-        <p className="text-blue-100">Gestiona tus solicitudes de servicio</p>
+        <div className="flex items-center gap-4 mb-3">
+          <Avatar name={usuario?.nombre} size="xl" />
+          <div>
+            <h2 className="text-2xl font-bold">👋 Bienvenido, {usuario?.nombre?.split(' ')[0]}</h2>
+            <p className="text-blue-100">Gestiona tus solicitudes de servicio</p>
+          </div>
+        </div>
       </div>
 
       {/* Resumen rápido */}
