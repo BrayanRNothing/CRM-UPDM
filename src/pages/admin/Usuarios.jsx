@@ -50,8 +50,12 @@ function Usuarios() {
     }, []);
 
     return (
-      <div ref={vantaRef} className="fixed inset-0 flex items-center justify-center z-50 p-4 text-white">
-        <div className="relative z-10 w-full max-w-md bg-black/30 backdrop-blur-md p-8 rounded-2xl border border-white/10 shadow-2xl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Fondo animado (no envuelve el formulario para no perder el foco al escribir) */}
+        <div ref={vantaRef} className="absolute inset-0" />
+        <div className="absolute inset-0 bg-black/30" />
+
+        <div className="relative z-10 w-full max-w-md bg-black/30 backdrop-blur-md p-8 rounded-2xl border border-white/10 shadow-2xl text-white">
           <h2 className="text-3xl font-bold mb-6 text-center tracking-wider">
             {modoEdicion ? 'Editar Usuario' : 'Crear Usuario'}
           </h2>
