@@ -4,32 +4,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
-import Database from 'better-sqlite3'; // <--- NUEVA LIBRERÍA
+import Database from 'better-sqlite3';
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
-// Configuración de rutas
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ==========================================
-// 💾 CONFIGURACIÓN DE SQLITE (BASE DE DATOS)
-// ==========================================
-
-// NOTA PARA RAILWAY: Si configuras un Volumen, cambia esta ruta.
-// Por ejemplo: const DB_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'database.db') : 'database.db';
-const DB_PATH = 'database.db'; 
-
+// --- BASE DE DATOS SQLITE ---
+// Si usas volumen en Railway, cambia esto, si no, déjalo así.
+const DB_PATH = 'database.db';
 const db = new Database(DB_PATH);
-// Habilitar modo WAL para mejor rendimiento y concurrencia
-db.pragma('journal_mode = WAL'); 
+db.pragma('journal_mode = WAL');
 
-console.log(`✅ Base de datos SQLite conectada: ${DB_PATH}`);
-
-// Inicializar Tablas si no existen
+// Inicializar Tablas
 const initDB = () => {
-  // Tabla Usuarios
   db.exec(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,8 +30,6 @@ const initDB = () => {
     )
   `);
 
-  // Tabla Servicios
-  // Nota: 'foto' se guardará como TEXTO (JSON string) porque SQLite no tiene tipo ARRAY nativo
   db.exec(`
     CREATE TABLE IF NOT EXISTS servicios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,8 +51,8 @@ const initDB = () => {
       fecha TEXT
     )
   `);
-  
-  // Crear usuario admin por defecto si no existe nadie
+
+  // Usuario Admin por defecto
   const stmt = db.prepare('SELECT count(*) as count FROM usuarios');
   const result = stmt.get();
   if (result.count === 0) {
@@ -73,20 +61,18 @@ const initDB = () => {
     insert.run('administrador@infiniguard.com', '123', 'admin', 'Administrador');
   }
 };
-
 initDB();
 
-// ==========================================
-// 📂 CONFIGURACIÓN DE ARCHIVOS (MULTER)
-// ==========================================
-const UPLOADS_DIR = path.join(__dirname, 'uploads'); 
+// --- CONFIGURACIÓN DE CARGA DE ARCHIVOS ---
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const cleanName = file.originalname.replace(/\s+/g, '_');
+    // Limpiamos el nombre de caracteres raros
+    const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
     cb(null, uniqueSuffix + '-' + cleanName);
   }
 });
@@ -95,16 +81,14 @@ const upload = multer({ storage });
 // MIDDLEWARES
 app.use(cors());
 app.use(express.json());
+// Servir la carpeta uploads públicamente
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// ==========================================
-// 🔌 RUTAS API (CAMBIADAS A SQL)
-// ==========================================
+// --- RUTAS API ---
 
-// --- LOGIN ---
+// 1. LOGIN
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
-  // Buscamos usuario en la DB
   const stmt = db.prepare('SELECT * FROM usuarios WHERE email = ? AND password = ?');
   const user = stmt.get(email, password);
 
@@ -116,62 +100,88 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-// --- SERVICIOS (GET) ---
+// 2. OBTENER SERVICIOS (GET)
 app.get('/api/servicios', (req, res) => {
-  const stmt = db.prepare('SELECT * FROM servicios ORDER BY id DESC');
-  const servicios = stmt.all();
-  
-  // Convertimos el campo 'foto' de texto JSON a Array real para que el frontend lo entienda
-  const serviciosFormateados = servicios.map(s => ({
-    ...s,
-    foto: s.foto ? JSON.parse(s.foto) : [] // Parseamos el JSON string
-  }));
+  try {
+    const stmt = db.prepare('SELECT * FROM servicios ORDER BY id DESC');
+    const servicios = stmt.all();
+    
+    // Parseamos la foto (que viene como string JSON) a un array real
+    const serviciosFormateados = servicios.map(s => ({
+      ...s,
+      foto: s.foto ? JSON.parse(s.foto) : [] 
+    }));
 
-  res.json(serviciosFormateados);
+    res.json(serviciosFormateados);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json([]);
+  }
 });
 
-// --- SERVICIOS (POST - CREAR) ---
-app.post('/api/servicios', (req, res) => {
+// 3. CREAR SERVICIO (POST) - AQUI ESTABA EL ERROR EN TU CÓDIGO VIEJO
+app.post('/api/servicios', upload.fields([{ name: 'foto', maxCount: 1 }, { name: 'pdf', maxCount: 1 }]), (req, res) => {
   const data = req.body;
   
-  // Preparamos los datos. Convertimos array de fotos a string JSON para guardar en SQLite
-  const fotoString = JSON.stringify(Array.isArray(data.foto) ? data.foto : (data.foto ? [data.foto] : []));
+  // Guardamos rutas como strings
+  let fotoPath = JSON.stringify([]); 
+  let pdfPath = null;
 
-  const stmt = db.prepare(`
-    INSERT INTO servicios (
-      titulo, cliente, usuario, tecnico, tipo, cantidad, direccion, telefono, 
-      descripcion, pdf, foto, estado, fecha
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  if (req.files['foto'] && req.files['foto'][0]) {
+    // Guardamos: ["uploads/archivo.jpg"]
+    fotoPath = JSON.stringify([`uploads/${req.files['foto'][0].filename}`]);
+  }
 
-  const info = stmt.run(
-    data.titulo, data.cliente || null, data.usuario || null, data.tecnico || null, 
-    data.tipo, data.cantidad || 1, data.direccion || '', data.telefono || '', 
-    data.descripcion || '', data.pdf || null, fotoString, 
-    data.tecnico ? 'aprobado' : 'pendiente', 
-    new Date().toISOString().split('T')[0]
-  );
+  if (req.files['pdf'] && req.files['pdf'][0]) {
+    pdfPath = `uploads/${req.files['pdf'][0].filename}`;
+  }
 
-  res.json({ success: true, id: info.lastInsertRowid });
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO servicios (
+        titulo, cliente, usuario, tecnico, tipo, cantidad, direccion, telefono, 
+        descripcion, pdf, foto, estado, fecha, precioEstimado, respuestaCotizacion
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      data.titulo, 
+      data.cliente || null, 
+      data.usuario || 'Anónimo', 
+      data.tecnico || null, 
+      data.tipo, 
+      data.cantidad || 1, 
+      data.direccion || '', 
+      data.telefono || '', 
+      data.descripcion || '', 
+      pdfPath, 
+      fotoPath, 
+      data.tecnico ? 'aprobado' : 'pendiente', 
+      new Date().toISOString().split('T')[0],
+      null,
+      null
+    );
+
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (error) {
+    console.error("Error al guardar:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
-// --- SERVICIOS (PUT - ACTUALIZAR) ---
+// 4. ACTUALIZAR / RESPONDER (PUT)
 app.put('/api/servicios/:id', upload.single('archivo'), (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
   
-  // Verificamos si existe el servicio
   const check = db.prepare('SELECT * FROM servicios WHERE id = ?').get(id);
   if (!check) return res.status(404).json({ success: false, message: 'Servicio no encontrado' });
 
-  // Lógica para actualizar campos dinámicamente
-  // 1. Si hay archivo nuevo, actualizamos PDF
   if (req.file) {
     const pdfPath = `uploads/${req.file.filename}`;
     db.prepare('UPDATE servicios SET pdf = ? WHERE id = ?').run(pdfPath, id);
   }
 
-  // 2. Actualizamos campos de texto si vienen
   if (updateData.estado) db.prepare('UPDATE servicios SET estado = ? WHERE id = ?').run(updateData.estado, id);
   if (updateData.respuestaAdmin) db.prepare('UPDATE servicios SET respuestaCotizacion = ? WHERE id = ?').run(updateData.respuestaAdmin, id);
   if (updateData.precio) db.prepare('UPDATE servicios SET precioEstimado = ? WHERE id = ?').run(updateData.precio, id);
@@ -179,33 +189,12 @@ app.put('/api/servicios/:id', upload.single('archivo'), (req, res) => {
   res.json({ success: true, message: 'Actualizado' });
 });
 
-// --- USUARIOS (CRUD BÁSICO) ---
+// 5. USUARIOS
 app.get('/api/usuarios', (req, res) => {
   const users = db.prepare('SELECT id, nombre, email, rol FROM usuarios').all();
   res.json(users);
 });
 
-app.post('/api/usuarios', (req, res) => {
-  const { nombre, email, password, rol } = req.body;
-  try {
-    const stmt = db.prepare('INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)');
-    const info = stmt.run(nombre, email, password, rol);
-    res.json({ success: true, user: { id: info.lastInsertRowid, nombre, email, rol } });
-  } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return res.status(400).json({ success: false, message: 'Email ya registrado' });
-    }
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete('/api/usuarios/:id', (req, res) => {
-  const stmt = db.prepare('DELETE FROM usuarios WHERE id = ?');
-  const info = stmt.run(req.params.id);
-  if (info.changes > 0) res.json({ success: true });
-  else res.status(404).json({ success: false });
-});
-
 app.listen(PORT, () => {
-  console.log(`\n🚀 Servidor SQLite corriendo en: http://localhost:${PORT}`);
+  console.log(`\n🚀 Servidor SQLite corriendo en puerto: ${PORT}`);
 });
