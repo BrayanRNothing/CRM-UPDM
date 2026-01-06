@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import API_URL from '../../config/api';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -17,23 +18,23 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     cargarDatos();
-    
+
     // Auto-refresh cada 10 segundos
     const interval = setInterval(() => {
       cargarDatos();
     }, 10000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
   const cargarDatos = async () => {
     try {
       // Cargar servicios
-      const resServicios = await fetch('https://infiniguardsys-production.up.railway.app/api/servicios');
+      const resServicios = await fetch(`${API_URL}/api/servicios`);
       const servicios = await resServicios.json();
 
       // Cargar usuarios
-      const resUsuarios = await fetch('https://infiniguardsys-production.up.railway.app/api/usuarios');
+      const resUsuarios = await fetch(`${API_URL}/api/usuarios`);
       const usuarios = await resUsuarios.json();
 
       // Calcular estadísticas
@@ -89,7 +90,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-8">
-      
+
       {/* 1. Título y Bienvenida */}
       <div>
         <h1 className="text-3xl font-bold text-gray-800">📊 Panel de Control</h1>
@@ -98,7 +99,7 @@ const AdminDashboard = () => {
 
       {/* 2. Grid de Estadísticas (KPIs) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Link to="/admin/cotizaciones" className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105">
+        <Link to="/admin/cotizaciones" className="bg-linear-to-br from-orange-500/80 to-orange-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
           <div className="flex flex-col items-center text-center">
             <div className="text-4xl mb-3">📄</div>
             <p className="text-orange-100 text-xs font-medium mb-2">Cotizaciones Pendientes</p>
@@ -106,7 +107,7 @@ const AdminDashboard = () => {
           </div>
         </Link>
 
-        <Link to="/admin/servicios" className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105">
+        <Link to="/admin/servicios" className="bg-linear-to-br from-yellow-500/80 to-yellow-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
           <div className="flex flex-col items-center text-center">
             <div className="text-4xl mb-3">⏳</div>
             <p className="text-yellow-100 text-xs font-medium mb-2">Servicios Pendientes</p>
@@ -114,7 +115,7 @@ const AdminDashboard = () => {
           </div>
         </Link>
 
-        <Link to="/admin/servicios" className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105">
+        <Link to="/admin/servicios" className="bg-linear-to-br from-purple-500/80 to-purple-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
           <div className="flex flex-col items-center text-center">
             <div className="text-4xl mb-3">⚙️</div>
             <p className="text-purple-100 text-xs font-medium mb-2">Servicios Activos</p>
@@ -122,7 +123,7 @@ const AdminDashboard = () => {
           </div>
         </Link>
 
-        <Link to="/admin/servicios" className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105">
+        <Link to="/admin/servicios" className="bg-linear-to-br from-green-500/80 to-green-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
           <div className="flex flex-col items-center text-center">
             <div className="text-4xl mb-3">✅</div>
             <p className="text-green-100 text-xs font-medium mb-2">Servicios Finalizados</p>
@@ -130,7 +131,7 @@ const AdminDashboard = () => {
           </div>
         </Link>
 
-        <Link to="/admin/usuarios" className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105">
+        <Link to="/admin/usuarios" className="bg-linear-to-br from-blue-500/80 to-blue-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
           <div className="flex flex-col items-center text-center">
             <div className="text-4xl mb-3">👥</div>
             <p className="text-blue-100 text-xs font-medium mb-2">Total Usuarios</p>
@@ -159,6 +160,11 @@ const AdminDashboard = () => {
               <span className="text-gray-700 font-medium">Clientes Registrados</span>
               <span className="text-2xl font-bold text-green-600">{stats.clientes}</span>
             </div>
+
+            <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+              <span className="text-gray-700 font-medium">Distribuidores</span>
+              <span className="text-2xl font-bold text-orange-600">{stats.distribuidores}</span>
+            </div>
           </div>
 
         </div>
@@ -170,30 +176,30 @@ const AdminDashboard = () => {
             Accesos Rápidos
           </h3>
           <div className="grid grid-cols-2 gap-3">
-            <Link 
-              to="/admin/cotizaciones" 
-              className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg hover:from-orange-100 hover:to-orange-200 transition text-center"
+            <Link
+              to="/admin/cotizaciones"
+              className="p-4 bg-linear-to-br from-orange-50 to-orange-100 rounded-lg hover:from-orange-100 hover:to-orange-200 transition text-center"
             >
               <div className="text-3xl mb-2">💬</div>
               <p className="text-sm font-semibold text-gray-700">Cotizaciones</p>
             </Link>
-            <Link 
-              to="/admin/servicios" 
-              className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg hover:from-purple-100 hover:to-purple-200 transition text-center"
+            <Link
+              to="/admin/servicios"
+              className="p-4 bg-linear-to-br from-purple-50 to-purple-100 rounded-lg hover:from-purple-100 hover:to-purple-200 transition text-center"
             >
               <div className="text-3xl mb-2">🔧</div>
               <p className="text-sm font-semibold text-gray-700">Servicios</p>
             </Link>
-            <Link 
-              to="/admin/usuarios" 
-              className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg hover:from-blue-100 hover:to-blue-200 transition text-center"
+            <Link
+              to="/admin/usuarios"
+              className="p-4 bg-linear-to-br from-blue-50 to-blue-100 rounded-lg hover:from-blue-100 hover:to-blue-200 transition text-center"
             >
               <div className="text-3xl mb-2">👥</div>
               <p className="text-sm font-semibold text-gray-700">Usuarios</p>
             </Link>
-            <Link 
-              to="/admin/comisiones" 
-              className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg hover:from-green-100 hover:to-green-200 transition text-center"
+            <Link
+              to="/admin/comisiones"
+              className="p-4 bg-linear-to-br from-green-50 to-green-100 rounded-lg hover:from-green-100 hover:to-green-200 transition text-center"
             >
               <div className="text-3xl mb-2">💰</div>
               <p className="text-sm font-semibold text-gray-700">Comisiones</p>

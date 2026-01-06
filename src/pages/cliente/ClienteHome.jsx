@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import CotizacionForm from '../../components/forms/CotizacionForm.jsx';
-import TabButton from '../../components/ui/TabButton';
-import TarjetaAccion from '../../components/ui/TarjetaAccion';
+import ClienteCotizacionDetalle from '../../components/cliente/ClienteCotizacionDetalle.jsx';
+import Avatar from '../../components/ui/Avatar';
 import API_URL from '../../config/api';
 
 const ClienteHome = () => {
-  const [activeTab, setActiveTab] = useState('inicio');
+  const [activeView, setActiveView] = useState('home'); // home, crear, ajustes
+  const [activeStatusTab, setActiveStatusTab] = useState('pendientes'); // pendientes, en-proceso, terminadas
   const [tipoServicio, setTipoServicio] = useState('');
   const [misSolicitudes, setMisSolicitudes] = useState([]);
   const [usuario, setUsuario] = useState(null);
+  const [detalleSeleccionado, setDetalleSeleccionado] = useState(null);
+  const [showAllPendientes, setShowAllPendientes] = useState(false);
+  const [showAllEnProceso, setShowAllEnProceso] = useState(false);
+  const [showAllTerminadas, setShowAllTerminadas] = useState(false);
 
   useEffect(() => {
     const userGuardado = JSON.parse(sessionStorage.getItem('user'));
@@ -21,12 +26,12 @@ const ClienteHome = () => {
     }, 10000);
 
     const handleTabChange = (e) => {
-      if (e.detail === 'home') setActiveTab('inicio');
-      // Solicitud genérica desde el footer
+      if (e.detail === 'home') setActiveView('home');
       if (e.detail === 'solicitar') {
-        setTipoServicio(''); // Resetear para que muestre el selector
-        setActiveTab('solicitar');
+        setTipoServicio('');
+        setActiveView('crear');
       }
+      if (e.detail === 'ajustes') setActiveView('ajustes');
     };
 
     window.addEventListener('changeClienteTab', handleTabChange);
@@ -41,7 +46,6 @@ const ClienteHome = () => {
     try {
       const res = await fetch(`${API_URL}/api/servicios`);
       const data = await res.json();
-      // Filtrar solo las de este usuario
       const misData = data.filter(s => s.usuario === user?.nombre || s.cliente === user?.nombre);
       setMisSolicitudes(misData);
     } catch (error) {
@@ -49,129 +53,304 @@ const ClienteHome = () => {
     }
   };
 
-  const handleRespuestaCliente = async (id, respuesta) => {
-    try {
-      const res = await fetch(`${API_URL}/api/servicios/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          estadoCliente: respuesta,
-          estado: respuesta === 'aprobado' ? 'aprobado' : 'rechazado'
-        })
-      });
-      if (res.ok) {
-        toast.success(`Cotización ${respuesta}`);
-        cargarSolicitudes(usuario);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
   const irACotizar = (tipo) => {
     setTipoServicio(tipo);
-    setActiveTab('solicitar');
+    setActiveView('crear');
   };
 
-  // Filtros
-  const pendientes = misSolicitudes.filter(s => s.estado === 'pendiente');
-  const cotizadas = misSolicitudes.filter(s => s.estado === 'cotizado');
-  const aprobadas = misSolicitudes.filter(s => s.estado === 'aprobado' || s.estadoCliente === 'aprobado');
-  const enProceso = misSolicitudes.filter(s => s.estado === 'en-proceso');
-  const finalizadas = misSolicitudes.filter(s => s.estado === 'finalizado');
-  const rechazadas = misSolicitudes.filter(s => s.estado === 'rechazado');
+  // Filtros de estado
+  const pendientes = misSolicitudes.filter(s => s.estado === 'pendiente' || s.estado === 'cotizado');
+  const enProceso = misSolicitudes.filter(s => s.estado === 'aprobado' || s.estado === 'en-proceso');
+  const terminadas = misSolicitudes.filter(s => s.estado === 'finalizado');
 
-  // --- RENDERS ---
-  const renderHome = () => (
-    <div className="space-y-8 animate-fadeIn">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-8 text-white shadow-xl">
-        <h1 className="text-3xl font-bold">Hola, {usuario?.nombre || 'Cliente'} 👋</h1>
-        <p>¿Qué necesitas hoy?</p>
+  // Mapeo de estados a badges
+  const getEstadoBadge = (estado) => {
+    const badges = {
+      'pendiente': { text: 'Pendiente', color: 'bg-orange-100 text-orange-700' },
+      'cotizado': { text: 'Cotizado', color: 'bg-blue-100 text-blue-700' },
+      'aprobado': { text: 'Aprobado', color: 'bg-green-100 text-green-700' },
+      'en-proceso': { text: 'En Proceso', color: 'bg-purple-100 text-purple-700' },
+      'finalizado': { text: 'Finalizado', color: 'bg-gray-100 text-gray-700' },
+      'rechazado': { text: 'Rechazado', color: 'bg-red-100 text-red-700' }
+    };
+    return badges[estado] || { text: estado, color: 'bg-gray-100 text-gray-700' };
+  };
+
+  // Formatear fecha
+  const formatearFecha = (fecha) => {
+    if (!fecha) return '';
+    const date = new Date(fecha);
+    const day = date.getDate();
+    const month = date.toLocaleDateString('es-ES', { month: 'short' });
+    return `${day} ${month.charAt(0).toUpperCase() + month.slice(1)}`;
+  };
+
+  // Render de tarjeta de cotización en mosaico
+  const CotizacionCard = ({ cotizacion }) => {
+    const badge = getEstadoBadge(cotizacion.estado);
+    return (
+      <div
+        onClick={() => setDetalleSeleccionado(cotizacion)}
+        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg transition-all cursor-pointer"
+      >
+        <h3 className="font-bold text-gray-900 mb-1 text-base line-clamp-1">{cotizacion.titulo}</h3>
+        <p className="text-sm text-gray-500 mb-3">{cotizacion.cliente || cotizacion.usuario || 'Cliente'}</p>
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm text-gray-400">📅 {formatearFecha(cotizacion.fecha)}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
+            {badge.text}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setDetalleSeleccionado(cotizacion);
+            }}
+            className="text-blue-600 font-semibold text-sm hover:text-blue-700 flex items-center gap-1"
+          >
+            Ver detalles <span>≫</span>
+          </button>
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <TarjetaAccion icono="🛠️" titulo="Servicio Técnico" onClick={() => irACotizar('Servicio Técnico')} color="blue" />
-        <TarjetaAccion icono="📦" titulo="Material" onClick={() => irACotizar('Material')} color="orange" />
-        <TarjetaAccion icono="🛡️" titulo="Garantía" onClick={() => irACotizar('Garantía')} color="purple" />
-      </div>
-    </div>
-  );
+    );
+  };
 
-  const renderListado = (lista, titulo, color) => (
-    <div className="space-y-4">
-      <h3 className={`text-xl font-bold text-${color}-800 mb-4`}>{titulo}</h3>
-      {lista.length === 0 ? <div className="text-gray-500 text-center py-8">No hay solicitudes aquí.</div> : (
-        lista.map(sol => (
-          <div key={sol.id} className={`bg-${color}-50 border border-${color}-200 rounded-lg p-4 shadow-sm`}>
-            <div className="flex justify-between">
-              <h3 className={`font-bold text-lg text-${color}-900`}>{sol.titulo}</h3>
-              <span className={`px-2 py-1 text-xs bg-${color}-200 text-${color}-800 rounded`}>{sol.estado}</span>
-            </div>
-            <p className="text-sm text-gray-700 mt-2">{sol.descripcion}</p>
+  // Render de lista de cotizaciones con "Ver más"
+  const ListaCotizaciones = ({ lista, showAll, setShowAll }) => {
+    const limit = 3;
+    const displayList = showAll ? lista : lista.slice(0, limit);
+    const hasMore = lista.length > limit;
 
-            {/* Botones para cotizadas */}
-            {activeTab === 'cotizadas' && sol.precioEstimado && (
-              <div className="mt-4 bg-white p-3 rounded border">
-                <p className="font-bold text-lg text-green-700">${sol.precioEstimado}</p>
-                <p className="text-xs text-gray-500 mb-2">{sol.respuestaCotizacion}</p>
-                <div className="flex gap-2">
-                  <button onClick={() => handleRespuestaCliente(sol.id, 'aprobado')} className="flex-1 bg-green-500 text-white py-1 rounded text-sm">Aceptar</button>
-                  <button onClick={() => handleRespuestaCliente(sol.id, 'rechazado')} className="flex-1 bg-red-500 text-white py-1 rounded text-sm">Rechazar</button>
-                </div>
-              </div>
-            )}
+    return (
+      <div className="space-y-3">
+        {displayList.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-sm">No hay cotizaciones aquí</p>
           </div>
-        ))
+        ) : (
+          <>
+            {displayList.map(cot => (
+              <CotizacionCard key={cot.id} cotizacion={cot} />
+            ))}
+            {hasMore && !showAll && (
+              <button
+                onClick={() => setShowAll(true)}
+                className="w-full py-3 text-blue-600 font-semibold text-sm hover:bg-blue-50 rounded-xl transition-all"
+              >
+                Ver más ({lista.length - limit} más)
+              </button>
+            )}
+            {showAll && lista.length > limit && (
+              <button
+                onClick={() => setShowAll(false)}
+                className="w-full py-3 text-gray-600 font-semibold text-sm hover:bg-gray-50 rounded-xl transition-all"
+              >
+                Ver menos
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // Vista HOME
+  const renderHome = () => (
+    <div className="pb-4">
+      {/* Pestañas de estado */}
+      <div className="flex gap-2 mb-6 overflow-x-auto px-1 pb-2 scrollbar-hide">
+        <button
+          onClick={() => {
+            setActiveStatusTab('pendientes');
+            setShowAllPendientes(false);
+          }}
+          className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'pendientes'
+            ? 'bg-blue-600 text-white shadow-md'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+        >
+          Pendientes
+        </button>
+        <button
+          onClick={() => {
+            setActiveStatusTab('en-proceso');
+            setShowAllEnProceso(false);
+          }}
+          className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'en-proceso'
+            ? 'bg-blue-600 text-white shadow-md'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+        >
+          En proceso
+        </button>
+        <button
+          onClick={() => {
+            setActiveStatusTab('terminadas');
+            setShowAllTerminadas(false);
+          }}
+          className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'terminadas'
+            ? 'bg-blue-600 text-white shadow-md'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+        >
+          Terminadas
+        </button>
+      </div>
+
+      {/* Contenido según pestaña activa */}
+      {activeStatusTab === 'pendientes' && (
+        <ListaCotizaciones lista={pendientes} showAll={showAllPendientes} setShowAll={setShowAllPendientes} />
+      )}
+      {activeStatusTab === 'en-proceso' && (
+        <ListaCotizaciones lista={enProceso} showAll={showAllEnProceso} setShowAll={setShowAllEnProceso} />
+      )}
+      {activeStatusTab === 'terminadas' && (
+        <ListaCotizaciones lista={terminadas} showAll={showAllTerminadas} setShowAll={setShowAllTerminadas} />
       )}
     </div>
   );
 
-  return (
-    <div className="max-w-6xl mx-auto p-4 space-y-6">
-      {/* NAVBAR TABS */}
-      <div className="flex flex-wrap gap-2 bg-gray-100 p-2 rounded-xl">
-        <TabButton active={activeTab === 'inicio'} onClick={() => setActiveTab('inicio')}>🏠 Inicio</TabButton>
-        <TabButton active={activeTab === 'pendientes'} onClick={() => setActiveTab('pendientes')} count={pendientes.length}>⏳ Pendientes</TabButton>
-        <TabButton active={activeTab === 'cotizadas'} onClick={() => setActiveTab('cotizadas')} count={cotizadas.length}>💬 Cotizadas</TabButton>
-        <TabButton active={activeTab === 'aprobadas'} onClick={() => setActiveTab('aprobadas')} count={aprobadas.length}>✅ Aprobadas</TabButton>
-        <TabButton active={activeTab === 'en-proceso'} onClick={() => setActiveTab('en-proceso')} count={enProceso.length}>🔧 En Proceso</TabButton>
-        <TabButton active={activeTab === 'finalizadas'} onClick={() => setActiveTab('finalizadas')} count={finalizadas.length}>🏁 Historial</TabButton>
-        <TabButton active={activeTab === 'rechazadas'} onClick={() => setActiveTab('rechazadas')} count={rechazadas.length}>❌ Rechazadas</TabButton>
+  // Vista CREAR
+  const renderCrear = () => (
+    <div className="pb-28">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Nueva Solicitud</h2>
+        <p className="text-gray-500">Selecciona el tipo de servicio que necesitas</p>
       </div>
 
-      {activeTab === 'inicio' && renderHome()}
-      {activeTab === 'solicitar' && (
-        <div>
-          <button onClick={() => setActiveTab('inicio')} className="mb-4 text-blue-600 font-medium">← Volver al inicio</button>
+      {!tipoServicio ? (
+        <div className="space-y-3">
+          {/* Instalación de Recubrimiento */}
+          <button
+            onClick={() => setTipoServicio('Instalación de Recubrimiento')}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98"
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-5xl">🏗️</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-1">Instalación de Recubrimiento</h3>
+                <p className="text-blue-100 text-sm">Instalación de sistemas de protección y recubrimiento</p>
+              </div>
+              <svg className="w-6 h-6 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </button>
 
-          {!tipoServicio ? (
-            <div className="animate-fadeIn">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Nueva Solicitud</h2>
-                <p className="text-gray-500">Selecciona el tipo de servicio que deseas cotizar</p>
+          {/* Mantenimiento */}
+          <button
+            onClick={() => setTipoServicio('Mantenimiento')}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98"
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-5xl">🔧</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-1">Mantenimiento</h3>
+                <p className="text-orange-100 text-sm">Mantenimiento preventivo y correctivo de sistemas</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <TarjetaAccion icono="🛠️" titulo="Servicio Técnico" onClick={() => setTipoServicio('Servicio Técnico')} color="blue" />
-                <TarjetaAccion icono="📦" titulo="Material" onClick={() => setTipoServicio('Material')} color="orange" />
-                <TarjetaAccion icono="🛡️" titulo="Garantía" onClick={() => setTipoServicio('Garantía')} color="purple" />
+              <svg className="w-6 h-6 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </button>
+
+          {/* Garantía Extendida */}
+          <button
+            onClick={() => setTipoServicio('Garantía Extendida')}
+            className="w-full bg-purple-500 hover:bg-purple-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98"
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-5xl">🛡️</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-1">Garantía Extendida</h3>
+                <p className="text-purple-100 text-sm">Extensión de cobertura y protección adicional</p>
               </div>
+              <svg className="w-6 h-6 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </div>
-          ) : (
-            <div>
-              <button onClick={() => setTipoServicio('')} className="mb-4 text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
-                <span>↑</span> Cambiar tipo de servicio
-              </button>
-              <CotizacionForm titulo={`Solicitud de ${tipoServicio}`} tipoServicio={tipoServicio} onSuccess={() => setActiveTab('pendientes')} />
-            </div>
-          )}
+          </button>
+        </div>
+      ) : (
+        <div>
+          <button
+            onClick={() => setTipoServicio('')}
+            className="mb-4 text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1"
+          >
+            ← Cambiar tipo de servicio
+          </button>
+          <CotizacionForm
+            titulo={`Solicitud de ${tipoServicio}`}
+            tipoServicio={tipoServicio}
+            onSuccess={() => {
+              setActiveView('home');
+              setTipoServicio('');
+              toast.success('Solicitud enviada correctamente');
+            }}
+          />
         </div>
       )}
-      {activeTab === 'pendientes' && renderListado(pendientes, 'Solicitudes Pendientes', 'orange')}
-      {activeTab === 'cotizadas' && renderListado(cotizadas, 'Cotizaciones Recibidas', 'blue')}
-      {activeTab === 'aprobadas' && renderListado(aprobadas, 'Solicitudes Aprobadas', 'green')}
-      {activeTab === 'en-proceso' && renderListado(enProceso, 'Servicios en Proceso', 'purple')}
-      {activeTab === 'finalizadas' && renderListado(finalizadas, 'Historial Finalizado', 'gray')}
-      {activeTab === 'rechazadas' && renderListado(rechazadas, 'Solicitudes Rechazadas', 'red')}
     </div>
+  );
+
+  // Vista AJUSTES
+  const renderAjustes = () => (
+    <div className="pb-4">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Ajustes</h2>
+      <div className="space-y-4">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <h3 className="font-bold text-gray-900 mb-3">Información del Perfil</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+              <span className="text-gray-500">Nombre:</span>
+              <span className="font-semibold text-gray-900">{usuario?.nombre}</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+              <span className="text-gray-500">Usuario:</span>
+              <span className="font-semibold text-gray-900">{usuario?.usuario}</span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-gray-500">Rol:</span>
+              <span className="font-semibold text-gray-900 capitalize">{usuario?.rol}</span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            sessionStorage.clear();
+            window.location.href = '/';
+          }}
+          className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-2xl transition-all shadow-md active:scale-95"
+        >
+          🚪 Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  );
+
+
+  // Si hay detalle seleccionado, mostrar solo el detalle
+  if (detalleSeleccionado) {
+    return (
+      <ClienteCotizacionDetalle
+        cotizacion={detalleSeleccionado}
+        onClose={() => setDetalleSeleccionado(null)}
+        onUpdate={() => {
+          cargarSolicitudes(usuario);
+          setDetalleSeleccionado(null);
+        }}
+      />
+    );
+  }
+
+  return (
+    <>
+      {activeView === 'home' && renderHome()}
+      {activeView === 'crear' && renderCrear()}
+      {activeView === 'ajustes' && renderAjustes()}
+    </>
   );
 };
 

@@ -1,4 +1,4 @@
-// Configuración del API
-const API_URL = import.meta.env.VITE_API_URL || 'https://infiniguardsys-production.up.railway.app';
+// URL del Backend - CONFIGURADO PARA PRUEBA LOCAL
+const API_URL = 'http://localhost:4000';
 
 export default API_URL;

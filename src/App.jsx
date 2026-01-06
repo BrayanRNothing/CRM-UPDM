@@ -12,10 +12,12 @@ import ClienteLayout from './layouts/ClienteLayout.jsx';
 // Páginas
 import React, { Suspense, lazy } from 'react';
 const Login = lazy(() => import('./pages/auth/Login.jsx'));
+const Register = lazy(() => import('./pages/auth/Register.jsx'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard.jsx'));
 const Servicios = lazy(() => import('./pages/admin/Servicios.jsx'));
 const Cotizaciones = lazy(() => import('./pages/admin/Cotizaciones.jsx'));
 const Usuarios = lazy(() => import('./pages/admin/Usuarios.jsx'));
+const CrearCotizaciones = lazy(() => import('./pages/admin/CrearCotizaciones.jsx'));
 const Ajustes = lazy(() => import('./pages/admin/Ajustes.jsx'));
 const TecnicoHome = lazy(() => import('./pages/tecnico/TecnicoHome.jsx'));
 const NuevaSolicitud = lazy(() => import('./pages/tecnico/NuevaSolicitud.jsx'));
@@ -89,6 +91,7 @@ function App() {
         <Routes>
           {/* RUTA PÚBLICA (El Login es la raíz "/") */}
           <Route path="/" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* --- RUTAS DE TUS 4 ROLES --- */}
           {/* Admin - Rutas Protegidas con Layout */}
@@ -98,6 +101,7 @@ function App() {
             <Route path="servicios" element={<Servicios />} />
             <Route path="comisiones" element={<div className="p-10 text-gray-600">Página de Comisiones (En construcción)</div>} />
             <Route path="usuarios" element={<Usuarios />} />
+            <Route path="crear-cotizaciones" element={<CrearCotizaciones />} />
             <Route path="ajustes" element={<Ajustes />} />
           </Route>
 

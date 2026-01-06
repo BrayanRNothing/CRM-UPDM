@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import API_URL from '../../config/api';
 
 function Ajustes() {
-  const API_BASE = 'https://infiniguardsys-production.up.railway.app';
+  const API_BASE = API_URL;
   const [exportandoDb, setExportandoDb] = useState(false);
   const [importandoDb, setImportandoDb] = useState(false);
   const importFileRef = useRef(null);
@@ -76,7 +77,7 @@ function Ajustes() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto w-full h-screen overflow-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Ajustes</h1>
         <p className="text-gray-500 text-sm">Configuración y respaldo de datos</p>

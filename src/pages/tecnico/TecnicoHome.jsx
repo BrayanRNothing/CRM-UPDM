@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import ServiceCard from '../../components/ui/ServiceCard';
+import API_URL from '../../config/api';
 
 
 const TecnicoHome = () => {
@@ -27,7 +28,7 @@ const TecnicoHome = () => {
 
     try {
       // Traer todos los servicios del backend
-      const res = await fetch('https://infiniguardsys-production.up.railway.app/api/servicios');
+      const res = await fetch(`${API_URL}/api/servicios`);
       const data = await res.json();
 
       // FILTRO A: Tareas asignadas al técnico (por id, por nombre o servicios generales sin asignar)
@@ -75,14 +76,14 @@ const TecnicoHome = () => {
 
   // 3. Marcar una tarea como finalizada (PUT al backend)
   const handleFinalizar = async (id) => {
-    if(!window.confirm("¿Confirmas que terminaste este servicio?")) return;
+    if (!window.confirm("¿Confirmas que terminaste este servicio?")) return;
     try {
-      const res = await fetch(`https://infiniguardsys-production.up.railway.app/api/servicios/${id}`, {
+      const res = await fetch(`${API_URL}/api/servicios/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'finalizado' })
       });
-      if(res.ok) {
+      if (res.ok) {
         alert("¡Excelente trabajo! Servicio registrado como completado.");
         cargarDatos(); // Recargar para moverlo al historial
       }
@@ -104,7 +105,7 @@ const TecnicoHome = () => {
       if (pendientes.length === 0) return <div className="text-center py-10 text-gray-400">No tienes tareas activas 🎉</div>;
       // Muestra cada tarea como ServiceCard, con botón de detalles y finalizar
       return pendientes.map(t => (
-        <ServiceCard 
+        <ServiceCard
           key={t.id}
           id={t.id}
           titulo={t.titulo}
@@ -136,7 +137,7 @@ const TecnicoHome = () => {
       if (finalizadas.length === 0) return <div className="text-center py-10 text-gray-400">Aún no has completado servicios.</div>;
       // Muestra cada tarea finalizada como ServiceCard
       return finalizadas.map(t => (
-        <ServiceCard 
+        <ServiceCard
           key={t.id}
           id={t.id}
           titulo={t.titulo}
@@ -195,7 +196,7 @@ const TecnicoHome = () => {
                         // Aprobar cotización: asigna técnico y cambia estado
                         const userActual = usuario || JSON.parse(sessionStorage.getItem('user') || 'null');
                         try {
-                          const res = await fetch(`https://infiniguardsys-production.up.railway.app/api/servicios/${sol.id}`, {
+                          const res = await fetch(`${API_URL}/api/servicios/${sol.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -264,19 +265,19 @@ const TecnicoHome = () => {
 
       {/* --- MENU DE PESTAÑAS (TABS) --- */}
       <div className="flex p-1 bg-gray-200 rounded-xl mb-6">
-        <button 
+        <button
           onClick={() => setActiveTab('pendientes')}
           className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'pendientes' ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}
         >
           Activas
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('completadas')}
           className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'completadas' ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}
         >
           Completadas
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('solicitudes')}
           className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'solicitudes' ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}
         >

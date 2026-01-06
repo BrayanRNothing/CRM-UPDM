@@ -99,7 +99,7 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
             {/* Barra Superior */}
             <div className="flex items-center justify-between mb-4 shrink-0 px-1">
                 <button onClick={onClose} className="group flex items-center text-gray-500 hover:text-blue-600 transition font-medium text-sm">
-                    <div className="bg-white border border-gray-200 group-hover:border-blue-200 h-8 w-8 flex items-center justify-center rounded-full mr-2 shadow-sm transition">←</div>
+                    <div className=" group-hover:border-blue-200 h-8 w-8 flex items-center justify-center mr-2 transition">←</div>
                     Volver al listado
                 </button>
                 <div className="bg-white px-3 py-1 rounded-full border border-gray-200 text-xs font-mono text-gray-400 shadow-sm">
@@ -107,18 +107,18 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2 pb-10">
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-full">
+            <div className="flex-1 overflow-hidden pr-2 pb-2">
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 h-full">
 
                     {/* --- IZQUIERDA: FICHA TÉCNICA --- */}
-                    <div className="xl:col-span-8 space-y-6">
-                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="xl:col-span-8 h-full">
+                        <div className="bg-gray-100 rounded-3xl overflow-hidden h-full flex flex-col">
 
                             {/* Encabezado */}
-                            <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 p-6 sm:p-8">
-                                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                            <div className="p-4 sm:p-5 bg-gray-100">
+                                <div className="flex flex-col sm:flex-row justify-between items-start gap-2 bg-gray-100">
                                     <div>
-                                        <div className="flex items-center gap-3 mb-3">
+                                        <div className="flex items-center gap-2 mb-1">
                                             <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${cotizacion.tipo === 'garantia' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
                                                 }`}>
                                                 {cotizacion.tipo}
@@ -127,7 +127,7 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                                 📅 {cotizacion.fecha}
                                             </span>
                                         </div>
-                                        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight mb-2">
+                                        <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 leading-tight mb-1">
                                             {cotizacion.titulo}
                                         </h1>
                                         <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -136,7 +136,7 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                             <span>Solicitante</span>
                                         </div>
                                     </div>
-                                    <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 text-center min-w-[100px]">
+                                    <div className="bg-gray-100 p-2 rounded-xl shadow-sm border border-gray-100 text-center min-w-[100px]">
                                         <div className="text-[10px] text-gray-400 uppercase font-bold">Estado</div>
                                         <div className={`font-bold capitalize ${cotizacion.estado === 'pendiente' ? 'text-orange-500' : 'text-green-500'}`}>
                                             {cotizacion.estado}
@@ -145,9 +145,9 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                 </div>
                             </div>
 
-                            {/* Grid de Datos Completos */}
-                            <div className="p-6 sm:p-8">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-6 mb-8">
+                            {/* Grid de Datos Completas */}
+                            <div className="p-4 sm:p-6 flex-1 overflow-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
                                     <InfoItem label="Dirección" value={cotizacion.direccion} icon="📍" />
                                     <InfoItem label="Teléfono / Contacto" value={cotizacion.telefono} icon="📞" />
                                     <InfoItem label="Cantidad Solicitada" value={cotizacion.cantidad} icon="📦" />
@@ -156,49 +156,46 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                     <InfoItem label="ID Sistema" value={cotizacion.id} icon="🆔" />
                                 </div>
 
-                                <div className="bg-gray-50/80 rounded-2xl p-6 border border-gray-100 mb-8">
-                                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Descripción del problema / Solicitud</h4>
-                                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                <div className="bg-gray-100 rounded-xl p-4 border border-gray-100 mb-4">
+                                    <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2">Descripción del problema</h4>
+                                    <p className="text-gray-700 text-xs leading-relaxed whitespace-pre-line">
                                         {cotizacion.descripcion || "Sin descripción proporcionada."}
                                     </p>
                                 </div>
 
                                 {/* Sección Archivos */}
                                 <div>
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Archivos Adjuntos</h3>
-                                    <div className="flex flex-wrap gap-4">
+                                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Archivos Adjuntos</h3>
+                                    <div className="flex flex-wrap gap-3">
 
                                         {/* 1. FOTO PREVIEW */}
                                         {cotizacion.foto ? (
                                             <div
                                                 onClick={() => setImagenZoom(fotoUrl)}
-                                                className="group relative h-32 w-48 bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 cursor-zoom-in hover:shadow-md transition-all"
+                                                className="group relative h-24 w-36 bg-gray-100 rounded-xl overflow-hidden border border-gray-200 cursor-zoom-in hover:shadow-md transition-all"
                                             >
                                                 <img src={fotoUrl} alt="Evidencia" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" onError={(e) => e.target.style.display = 'none'} />
                                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                    <span className="bg-white/90 text-gray-800 text-xs font-bold px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">Ver Foto</span>
+                                                    <span className="bg-white/90 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all">Ver Foto</span>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="h-32 w-32 bg-gray-50 rounded-2xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-xs">
+                                            <div className="h-24 w-24 bg-gray-50 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-[10px]">
                                                 Sin Foto
                                             </div>
                                         )}
 
-                                        {/* 2. PDF DESCARGABLE (Botón Funcional) */}
+                                        {/* 2. PDF DESCARGABLE */}
                                         {cotizacion.pdf ? (
                                             <button
                                                 onClick={() => handleDescargarArchivo(cotizacion.pdf, `Evidencia_${cotizacion.id}.pdf`)}
-                                                className="h-32 w-48 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-2xl flex flex-col items-center justify-center text-gray-600 hover:text-red-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
+                                                className="h-24 w-36 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-xl flex flex-col items-center justify-center text-gray-600 hover:text-red-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
                                             >
-                                                <div className="bg-red-100 p-3 rounded-full mb-2 group-hover:scale-110 transition">
-                                                    <span className="text-xl">📄</span>
-                                                </div>
-                                                <span className="text-xs font-bold">Descargar PDF</span>
-                                                <span className="text-[10px] text-gray-400 mt-1">Click para guardar</span>
+                                                <span className="text-xl group-hover:scale-110 transition">📄</span>
+                                                <span className="text-[10px] font-bold mt-1">Descargar PDF</span>
                                             </button>
                                         ) : (
-                                            <div className="h-32 w-32 bg-gray-50 rounded-2xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-xs">
+                                            <div className="h-24 w-24 bg-gray-50 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-[10px]">
                                                 Sin PDF
                                             </div>
                                         )}
@@ -209,35 +206,53 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                     </div>
 
                     {/* --- DERECHA: FORMULARIO DE RESPUESTA --- */}
-                    <div className="xl:col-span-4">
-                        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 h-fit sticky top-4 overflow-hidden">
-                            <div className="bg-gray-900 px-8 py-5 flex items-center justify-between">
+                    <div className="xl:col-span-4 h-full">
+                        <div className="bg-white rounded-2xl border-2 border-gray-400 h-full overflow-hidden flex flex-col">
+                            <div className="bg-white px-8 py-5 flex items-center justify-between">
                                 <div>
-                                    <h3 className="text-white font-bold text-lg">Panel de Respuesta</h3>
+                                    <h3 className="text-black font-bold text-lg">Panel de Respuesta</h3>
                                     <p className="text-gray-400 text-xs mt-0.5">Enviar cotización al cliente</p>
                                 </div>
-                                <div className="bg-white/10 p-2 rounded-lg text-xl">💬</div>
+                                <div className="bg-white p-2 rounded-lg text-xl">💬</div>
                             </div>
 
-                            <div className="p-6 space-y-5">
-                                {/* Precio */}
-                                <div>
-                                    <label className="flex justify-between text-xs font-bold text-gray-500 uppercase mb-2">
-                                        Precio Total <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <span className="text-gray-400 font-bold text-lg group-focus-within:text-blue-500 transition">$</span>
+                            <div className="p-6 space-y-5 flex-1 overflow-auto">
+                                {/* Fila: Precio + PDF */}
+                                <div className="flex gap-4 items-end">
+                                    <div className="flex-1">
+                                        <label className="flex justify-between text-xs font-bold text-gray-500 uppercase mb-2">
+                                            Precio Total <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                <span className="text-gray-400 font-bold text-lg group-focus-within:text-blue-500 transition">$</span>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                className="w-full pl-9 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-bold text-2xl text-gray-900 placeholder-gray-300"
+                                                placeholder="0.00"
+                                                value={respuesta.precio}
+                                                onChange={(e) => setRespuesta({ ...respuesta, precio: e.target.value })}
+                                            />
                                         </div>
-                                        <input
-                                            type="number"
-                                            className="w-full pl-9 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-bold text-2xl text-gray-900 placeholder-gray-300"
-                                            placeholder="0.00"
-                                            value={respuesta.precio}
-                                            onChange={(e) => setRespuesta({ ...respuesta, precio: e.target.value })}
-                                        />
+                                    </div>
+
+                                    {/* Adjuntar PDF Compacto */}
+                                    <div className="w-20 shrink-0">
+                                        <label className="block text-center text-[10px] font-bold text-gray-500 uppercase mb-2">PDF</label>
+                                        <label className={`flex flex-col items-center justify-center w-full h-[68px] transition ${archivo ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-blue-50 hover:border-blue-300'} border-2 border-dashed rounded-xl cursor-pointer focus:outline-none group`}>
+                                            <span className="text-2xl group-hover:scale-110 transition">{archivo ? '📄' : '☁️'}</span>
+                                            <input type="file" className="hidden" accept="application/pdf" onChange={(e) => setArchivo(e.target.files[0])} />
+                                        </label>
                                     </div>
                                 </div>
+
+                                {archivo && (
+                                    <div className="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-[10px] font-bold flex justify-between items-center border border-blue-100">
+                                        <span className="truncate max-w-[150px]">{archivo.name}</span>
+                                        <button onClick={() => setArchivo(null)} className="text-red-500 hover:text-red-700 ml-2 text-sm">✕</button>
+                                    </div>
+                                )}
 
                                 {/* Mensaje */}
                                 <div>
@@ -245,7 +260,7 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                         Notas / Diagnóstico <span className="text-red-500">*</span>
                                     </label>
                                     <textarea
-                                        rows="5"
+                                        rows="6"
                                         className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-700 resize-none placeholder-gray-400"
                                         placeholder="Describe los detalles de la cotización..."
                                         value={respuesta.texto}
@@ -253,23 +268,9 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                     ></textarea>
                                 </div>
 
-                                {/* Adjuntar */}
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Adjuntar PDF (Opcional)</label>
-                                    <label className="flex flex-col items-center justify-center w-full h-24 px-4 transition bg-white border-2 border-gray-200 border-dashed rounded-xl appearance-none cursor-pointer hover:border-blue-400 hover:bg-blue-50 focus:outline-none group">
-                                        <span className="flex flex-col items-center space-y-1">
-                                            <span className="text-2xl group-hover:-translate-y-1 transition">{archivo ? '📎' : '☁️'}</span>
-                                            <span className="font-medium text-gray-600 text-xs truncate max-w-[200px]">
-                                                {archivo ? archivo.name : 'Click para subir archivo'}
-                                            </span>
-                                        </span>
-                                        <input type="file" className="hidden" accept="application/pdf" onChange={(e) => setArchivo(e.target.files[0])} />
-                                    </label>
-                                </div>
+                                <hr className="border-white" />
 
-                                <hr className="border-gray-100" />
-
-                                <div className="pt-2 flex flex-col gap-3">
+                                <div className="pt-4 flex flex-col gap-3">
                                     <button
                                         onClick={handleEnviarCotizacion}
                                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 hover:shadow-blue-300 transition active:scale-[0.98] flex justify-center items-center gap-2"
@@ -278,9 +279,9 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                     </button>
                                     <button
                                         onClick={handleRechazarCotizacionTecnico}
-                                        className="w-full bg-white border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-200 font-bold py-3 rounded-xl transition text-sm"
+                                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-200 hover:shadow-red-300 transition active:scale-[0.98] flex justify-center items-center gap-2"
                                     >
-                                        Rechazar Solicitud
+                                        <span>❌</span> Rechazar Solicitud
                                     </button>
                                 </div>
                             </div>

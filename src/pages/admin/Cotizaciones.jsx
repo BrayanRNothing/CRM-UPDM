@@ -45,37 +45,91 @@ function Cotizaciones() {
                     }}
                 />
             ) : (
-                <div className="h-[calc(100vh-6rem)] w-full flex flex-col overflow-hidden animate-fadeIn">
+                <div className="flex-1 w-full flex flex-col overflow-hidden animate-fadeIn">
 
-                    {/* --- SECCIÓN DEL MENÚ PRINCIPAL --- */}
+                    {/* ############################################### 4 Tarjetas ################################################################################################ */}
                     {vistaActual === 'menu' && (
-                        <div className="flex flex-col h-full">
-                            <div className="mb-4 shrink-0">
-                                <h1 className="text-2xl font-bold text-gray-800">Cotizaciones</h1>
+                        // CAMBIO 1: Quitamos 'max-w-6xl mx-auto' y ponemos 'w-full h-[calc(100vh-100px)]'
+                        // Esto hace que el contenedor ocupe todo el ancho y casi toda la altura de la pantalla (restando un poco para el header si tienes uno)
+                        <div className="w-full h-full animate-fadeInUp flex flex-col min-h-0">
+
+                            {/* Encabezado */}
+                            <div className="mb-6 shrink-0"> {/* shrink-0 evita que el título se aplaste */}
+                                <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-500">Gestión de Cotizaciones</h1>
+                                <p className="text-gray-500 dark:text-gray-400 text-lg">Administra presupuestos y solicitudes de clientes</p>
                             </div>
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
-                                <BotonMenu gradient="from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700" icon="📄" titulo="Pendientes" sub="Por cotizar" count={pendientes.length} onClick={() => setVistaActual('pendientes')} />
-                                <BotonMenu gradient="from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700" icon="💬" titulo="Cotizadas" sub="Esperando respuesta" count={cotizadas.length} onClick={() => setVistaActual('cotizadas')} />
-                                <BotonMenu gradient="from-green-500 to-green-600 hover:from-green-600 hover:to-green-700" icon="✅" titulo="Aprobadas" sub="Listas para asignar" count={aprobadas.length} onClick={() => setVistaActual('aprobadas')} />
-                                <BotonMenu gradient="from-red-500 to-red-600 hover:from-red-600 hover:to-red-700" icon="❌" titulo="Rechazadas" sub="Historial" count={rechazadas.length} onClick={() => setVistaActual('rechazadas')} />
+
+                            {/* CAMBIO 2: El Grid ahora ocupa el espacio restante (flex-grow) y quitamos 'max-w-5xl' */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full flex-grow">
+                                {/* Los botones ahora se estirarán para llenar este espacio gracias a 'h-full' dentro de BotonMenu */}
+                                <BotonMenu
+                                    gradient="from-orange-500/80 to-orange-600/80 hover:from-orange-600/90 hover:to-orange-700/90"
+                                    icon="📄"
+                                    titulo="Pendientes"
+                                    count={pendientes.length}
+                                    onClick={() => setVistaActual('pendientes')}
+                                />
+                                <BotonMenu
+                                    gradient="from-blue-500/80 to-blue-600/80 hover:from-blue-600/90 hover:to-blue-700/90"
+                                    icon="💬"
+                                    titulo="Cotizadas"
+                                    count={cotizadas.length}
+                                    onClick={() => setVistaActual('cotizadas')}
+                                />
+                                <BotonMenu
+                                    gradient="from-green-500/80 to-green-600/80 hover:from-green-600/90 hover:to-green-700/90"
+                                    icon="✅"
+                                    titulo="Aprobadas"
+                                    count={aprobadas.length}
+                                    onClick={() => setVistaActual('aprobadas')}
+                                />
+                                <BotonMenu
+                                    gradient="from-red-500/80 to-red-600/80 hover:from-red-600/90 hover:to-red-700/90"
+                                    icon="❌"
+                                    titulo="Rechazadas"
+                                    count={rechazadas.length}
+                                    onClick={() => setVistaActual('rechazadas')}
+                                />
                             </div>
                         </div>
                     )}
 
+                    {/*################################################## 4 TARJETAS #############################################################################################*/}
+
                     {vistaActual !== 'menu' && (
-                        <div className="flex flex-col h-full overflow-hidden">
-                            <div className="shrink-0 mb-4">
-                                <button onClick={() => setVistaActual('menu')} className="mb-4 text-blue-600 font-semibold flex items-center gap-2">← Volver al menú</button>
-                                {vistaActual === 'pendientes' && <h1 className="text-2xl font-bold text-orange-600">⏳ Pendientes ({pendientes.length})</h1>}
-                                {vistaActual === 'cotizadas' && <h1 className="text-2xl font-bold text-blue-600">💬 Cotizadas ({cotizadas.length})</h1>}
-                                {vistaActual === 'aprobadas' && <h1 className="text-2xl font-bold text-green-600">✅ Aprobadas ({aprobadas.length})</h1>}
-                                {vistaActual === 'rechazadas' && <h1 className="text-2xl font-bold text-red-600">❌ Rechazadas ({rechazadas.length})</h1>}
+                        <div className="max-w-7xl mx-auto animate-fadeInUp pb-12 w-full h-screen overflow-auto">
+                            <div className="mb-6">
+                                <button onClick={() => setVistaActual('menu')} className="mb-6 text-gray-600 hover:text-gray-700 font-semibold flex items-center gap-2 transition-colors">← Volver al menú</button>
+                                <div className="mb-4">
+                                    {vistaActual === 'pendientes' && (
+                                        <>
+
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">{pendientes.length} cotizaciones esperando respuesta</p>
+                                        </>
+                                    )}
+                                    {vistaActual === 'cotizadas' && (
+                                        <>
+
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">{cotizadas.length} cotizaciones enviadas a clientes</p>
+                                        </>
+                                    )}
+                                    {vistaActual === 'aprobadas' && (
+                                        <>
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">{aprobadas.length} trabajos listos para asignar técnico</p>
+                                        </>
+                                    )}
+                                    {vistaActual === 'rechazadas' && (
+                                        <>
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">{rechazadas.length} cotizaciones declinadas</p>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex-1 overflow-y-auto pr-2 pb-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {(vistaActual === 'pendientes' ? pendientes : vistaActual === 'aprobadas' ? aprobadas : vistaActual === 'cotizadas' ? cotizadas : rechazadas).map(cot => (
-                                        <div key={cot.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 overflow-hidden flex flex-col h-full group">
+                                        <div key={cot.id} className="bg-white rounded-xl border border-gray-400 transition-all duration-300 overflow-hidden flex flex-col h-full group">
                                             <div className="h-40 w-full bg-gray-100 relative overflow-hidden">
                                                 {cot.foto ? (
                                                     <>
@@ -86,7 +140,7 @@ function Cotizaciones() {
                                                             onError={(e) => e.target.style.display = 'none'}
                                                         />
                                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-                                                            <button onClick={(e) => { e.stopPropagation(); setImagenZoom(getSafeUrl(cot.foto)); }} className="bg-white text-gray-800 p-2 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition">🔍</button>
+                                                            <button onClick={(e) => { e.stopPropagation(); setImagenZoom(getSafeUrl(cot.foto)); }} className="bg-white text-gray-800 p-2 rounded-full border border-gray-200 transform translate-y-4 group-hover:translate-y-0 transition">🔍</button>
                                                         </div>
                                                     </>
                                                 ) : <div className="h-full flex flex-col items-center justify-center text-gray-400"><span className="text-4xl">📄</span></div>}
@@ -96,7 +150,7 @@ function Cotizaciones() {
                                                 <h3 className="font-bold text-md text-gray-800 mb-1 line-clamp-1">{cot.titulo}</h3>
                                                 <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">{cot.descripcion}</p>
                                                 {vistaActual === 'pendientes' && (
-                                                    <button onClick={() => setDetalleCot(cot)} className="w-full bg-gray-900 hover:bg-blue-600 text-white font-bold py-2 rounded-lg transition shadow-lg flex items-center justify-center gap-2 text-sm">Responder</button>
+                                                    <button onClick={() => setDetalleCot(cot)} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 rounded-lg transition flex items-center justify-center gap-2 text-sm">Ver detalles</button>
                                                 )}
                                                 {vistaActual === 'aprobadas' && <div className="text-green-600 font-bold text-lg">${cot.precio}</div>}
                                             </div>
