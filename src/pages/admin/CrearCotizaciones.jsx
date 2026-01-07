@@ -7,10 +7,19 @@ import logoImg from '../../assets/LOGOUPDM.png';
 const CrearCotizaciones = () => {
     const [loading, setLoading] = useState(false);
 
+    // Get next quotation number for preview
+    const getNextQuotationNumber = () => {
+        const current = parseInt(localStorage.getItem('lastQuotationNumber') || '12999', 10);
+        return `COT-${(current + 1).toString().padStart(6, '0')}`;
+    };
+
+    const [previewQuotationNumber, setPreviewQuotationNumber] = useState(getNextQuotationNumber());
+
     // Form data
     const [formData, setFormData] = useState({
         // Client info
         clienteNombre: '',
+        clienteEmpresa: '',
         clienteEmail: '',
         clienteTelefono: '',
         clienteDireccion: '',
@@ -21,11 +30,13 @@ const CrearCotizaciones = () => {
         fecha: new Date().toISOString().split('T')[0],
         validez: '30', // días
         creadoPor: '', // Nombre de quien crea la cotización
+        notas: '', // Notas adicionales
 
         // Financial
+        moneda: 'MXN', // MXN o USD
         impuesto: '16', // IVA %
         descuento: '0', // %
-        terminosCondiciones: 'Pago: 50% anticipo, 50% contra entrega.\nGarantía: 12 meses en mano de obra.\nTiempo de entrega: Según lo acordado.',
+        terminosCondiciones: 'Se requiere contar con toma de agua y suministro eléctrico cercanos para poder llevar a cabo el servicio de recubrimiento. Se otorga una garantía de 2 años contra la corrosión. ¡En caso de que el serpentín sea reemplazado antes de que concluya dicho periodo, el serpentín sustituido será recubierto nuevamente sin costo adicional por nuestra parte!',
     });
 
     // Line items
@@ -78,10 +89,13 @@ const CrearCotizaciones = () => {
 
     // Format currency
     const formatCurrency = (value) => {
-        return new Intl.NumberFormat('es-MX', {
+        const currencyCode = formData.moneda || 'MXN';
+        const formatted = new Intl.NumberFormat('es-MX', {
             style: 'currency',
-            currency: 'MXN'
+            currency: currencyCode
         }).format(value);
+        // Add MXN suffix for clarity (USD already shows in format)
+        return currencyCode === 'MXN' ? `${formatted} MXN` : formatted;
     };
 
     // Validate form
@@ -116,8 +130,11 @@ const CrearCotizaciones = () => {
             const pageWidth = doc.internal.pageSize.width;
             let yPos = 10;
 
-            // Generate quotation number (timestamp-based)
-            const quotationNumber = `COT-${Date.now().toString().slice(-8)}`;
+            // Generate incremental quotation number from localStorage
+            let currentQuotationNumber = parseInt(localStorage.getItem('lastQuotationNumber') || '12999', 10);
+            currentQuotationNumber += 1;
+            localStorage.setItem('lastQuotationNumber', currentQuotationNumber.toString());
+            const quotationNumber = `COT-${currentQuotationNumber.toString().padStart(6, '0')}`;
 
             // Logo on the left
             const logoWidth = 40;
@@ -135,7 +152,7 @@ const CrearCotizaciones = () => {
                 doc.setTextColor(60, 60, 60);
                 doc.setFontSize(14);
                 doc.setFont('helvetica', 'bold');
-                doc.text('INFINIGUARD', 14, yPos + 10);
+                doc.text('UPDM', 14, yPos + 10);
             }
 
             // Quotation number on the right
@@ -163,11 +180,27 @@ const CrearCotizaciones = () => {
 
             yPos += 10;
 
-            // Quotation Info
+            // Date and Validity on the same line
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
             doc.text(`Fecha: ${formData.fecha}`, 14, yPos);
             doc.text(`Válida por: ${formData.validez} días`, pageWidth - 14, yPos, { align: 'right' });
+
+            yPos += 7;
+
+            // Issuer info below date
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(60, 60, 60);
+            doc.text('Emisor: UPDM', 14, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.text('RFC: UPD141011MC3', pageWidth - 14, yPos, { align: 'right' });
+
+            yPos += 5;
+            doc.text('Blvd. Rogelio cantú Gómez 333-9, col Santa María, Monterrey, N.L, 64650', 14, yPos);
+
+            yPos += 5;
+            doc.text('TEL: 813-557-3724 & 811-418-5412', 14, yPos);
 
             yPos += 7;
             doc.setFont('helvetica', 'bold');
@@ -186,6 +219,12 @@ const CrearCotizaciones = () => {
             doc.text('CLIENTE:', 18, yPos);
             doc.setFont('helvetica', 'normal');
             doc.text(formData.clienteNombre, 35, yPos);
+
+            if (formData.clienteEmpresa) {
+                yPos += 5;
+                doc.text('Empresa:', 18, yPos);
+                doc.text(formData.clienteEmpresa, 35, yPos);
+            }
 
             if (formData.clienteEmail) {
                 yPos += 5;
@@ -290,6 +329,26 @@ const CrearCotizaciones = () => {
 
             yPos += 15;
 
+            // Notes section (above terms and conditions)
+            if (formData.notas) {
+                if (yPos > 230) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(60, 60, 60);
+                doc.text('NOTAS:', 14, yPos);
+                yPos += 6;
+
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                const notasLines = doc.splitTextToSize(formData.notas, pageWidth - 28);
+                doc.text(notasLines, 14, yPos);
+                yPos += notasLines.length * 4 + 8;
+            }
+
             // Terms and Conditions (moved lower)
             if (formData.terminosCondiciones) {
                 if (yPos > 230) {
@@ -335,10 +394,7 @@ const CrearCotizaciones = () => {
     return (
         <div className="max-w-7xl mx-auto w-full h-screen overflow-auto">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-800"> Crear Cotización</h1>
-                <p className="text-gray-500 text-sm">Genera cotizaciones en PDF</p>
-            </div>
+
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Form Section */}
@@ -356,6 +412,17 @@ const CrearCotizaciones = () => {
                                     onChange={(e) => setFormData({ ...formData, clienteNombre: e.target.value })}
                                     className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Nombre completo o empresa"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Empresa</label>
+                                <input
+                                    type="text"
+                                    value={formData.clienteEmpresa}
+                                    onChange={(e) => setFormData({ ...formData, clienteEmpresa: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Nombre de la empresa"
                                 />
                             </div>
 
@@ -536,33 +603,59 @@ const CrearCotizaciones = () => {
                     <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
                         <h2 className="text-lg font-bold text-gray-800 mb-4">💰 Configuración Financiera</h2>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">IVA (%)</label>
-                                <input
-                                    type="number"
-                                    value={formData.impuesto}
-                                    onChange={(e) => setFormData({ ...formData, impuesto: e.target.value })}
+                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Moneda</label>
+                                <select
+                                    value={formData.moneda}
+                                    onChange={(e) => setFormData({ ...formData, moneda: e.target.value })}
                                     className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    min="0"
-                                    max="100"
-                                    step="0.1"
-                                />
+                                >
+                                    <option value="MXN">Peso Mexicano (MXN)</option>
+                                    <option value="USD">Dólar Estadounidense (USD)</option>
+                                </select>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Descuento (%)</label>
-                                <input
-                                    type="number"
-                                    value={formData.descuento}
-                                    onChange={(e) => setFormData({ ...formData, descuento: e.target.value })}
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    min="0"
-                                    max="100"
-                                    step="0.1"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">IVA (%)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.impuesto}
+                                        onChange={(e) => setFormData({ ...formData, impuesto: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Descuento (%)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.descuento}
+                                        onChange={(e) => setFormData({ ...formData, descuento: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                    />
+                                </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4">📝 Notas</h2>
+                        <textarea
+                            value={formData.notas}
+                            onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                            rows="3"
+                            className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                            placeholder="Notas adicionales sobre la cotización..."
+                        />
                     </div>
 
                     {/* Terms and Conditions */}
@@ -589,7 +682,7 @@ const CrearCotizaciones = () => {
                                 <img src={logoImg} alt="INFINIGUARD Logo" className="h-12 object-contain" />
                                 <div className="text-right">
                                     <div className="text-xs font-bold text-gray-500 uppercase">Cotización</div>
-                                    <div className="text-lg font-bold text-gray-700">COT-XXXXXXXX</div>
+                                    <div className="text-lg font-bold text-gray-700">{previewQuotationNumber}</div>
                                 </div>
                             </div>
                         </div>
@@ -612,6 +705,7 @@ const CrearCotizaciones = () => {
                             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 <div className="text-xs space-y-1">
                                     <div><span className="font-bold">Cliente:</span> {formData.clienteNombre || 'Sin especificar'}</div>
+                                    {formData.clienteEmpresa && <div><span className="font-bold">Empresa:</span> {formData.clienteEmpresa}</div>}
                                     {formData.clienteEmail && <div><span className="font-bold">Email:</span> {formData.clienteEmail}</div>}
                                     {formData.clienteTelefono && <div><span className="font-bold">Tel:</span> {formData.clienteTelefono}</div>}
                                     {formData.clienteDireccion && <div><span className="font-bold">Dir:</span> {formData.clienteDireccion}</div>}
@@ -673,6 +767,13 @@ const CrearCotizaciones = () => {
                                     <span>{formatCurrency(calcularTotal())}</span>
                                 </div>
                             </div>
+
+                            {formData.notas && (
+                                <div className="text-xs text-gray-700 border-t pt-3">
+                                    <div className="font-bold mb-1">Notas:</div>
+                                    <div className="whitespace-pre-line">{formData.notas}</div>
+                                </div>
+                            )}
 
                             {formData.terminosCondiciones && (
                                 <div className="text-xs text-gray-700 border-t pt-3">

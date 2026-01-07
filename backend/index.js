@@ -89,6 +89,34 @@ const initDB = () => {
     // Columna ya existe
   }
 
+  // Nuevas columnas para información del técnico
+  try {
+    db.exec(`ALTER TABLE servicios ADD COLUMN tecnicoAsignado TEXT`);
+  } catch (e) {
+    // Columna ya existe
+  }
+  try {
+    db.exec(`ALTER TABLE servicios ADD COLUMN telefonoTecnico TEXT`);
+  } catch (e) {
+    // Columna ya existe
+  }
+  try {
+    db.exec(`ALTER TABLE servicios ADD COLUMN fechaProgramada TEXT`);
+  } catch (e) {
+    // Columna ya existe
+  }
+
+  // Migrar datos existentes de 'tecnico' a 'tecnicoAsignado'
+  try {
+    db.exec(`
+      UPDATE servicios 
+      SET tecnicoAsignado = tecnico 
+      WHERE tecnico IS NOT NULL AND tecnicoAsignado IS NULL
+    `);
+  } catch (e) {
+    console.log('Error migrando datos de técnico:', e.message);
+  }
+
   const stmt = db.prepare('SELECT count(*) as count FROM usuarios');
   if (stmt.get().count === 0) {
     const insert = db.prepare('INSERT INTO usuarios (email, password, rol, nombre) VALUES (?, ?, ?, ?)');
@@ -230,6 +258,19 @@ app.put('/api/servicios/:id', upload.single('archivo'), (req, res) => {
       db.prepare('UPDATE servicios SET tecnico = ? WHERE id = ?').run(update.tecnico, id);
     }
 
+    // Nuevos campos de técnico
+    if (update.tecnicoAsignado) {
+      db.prepare('UPDATE servicios SET tecnicoAsignado = ? WHERE id = ?').run(update.tecnicoAsignado, id);
+    }
+
+    if (update.telefonoTecnico) {
+      db.prepare('UPDATE servicios SET telefonoTecnico = ? WHERE id = ?').run(update.telefonoTecnico, id);
+    }
+
+    if (update.fechaProgramada) {
+      db.prepare('UPDATE servicios SET fechaProgramada = ? WHERE id = ?').run(update.fechaProgramada, id);
+    }
+
     if (update.tecnicoId) {
       db.prepare('UPDATE servicios SET tecnicoId = ? WHERE id = ?').run(update.tecnicoId, id);
     }
@@ -309,6 +350,23 @@ app.delete('/api/usuarios/:id', (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error eliminando usuario:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST - Reiniciar base de datos (eliminar todos los servicios)
+app.post('/api/db/reset', (req, res) => {
+  try {
+    // Eliminar todos los servicios
+    db.prepare('DELETE FROM servicios').run();
+
+    // Reiniciar el autoincrement
+    db.prepare('DELETE FROM sqlite_sequence WHERE name = ?').run('servicios');
+
+    console.log('✅ Base de datos reiniciada - Todos los servicios eliminados');
+    res.json({ success: true, message: 'Base de datos reiniciada correctamente' });
+  } catch (error) {
+    console.error('Error reiniciando base de datos:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

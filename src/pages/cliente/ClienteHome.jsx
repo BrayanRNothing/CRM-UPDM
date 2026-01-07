@@ -88,6 +88,8 @@ const ClienteHome = () => {
   // Render de tarjeta de cotización en mosaico
   const CotizacionCard = ({ cotizacion }) => {
     const badge = getEstadoBadge(cotizacion.estado);
+    const tieneAsignacion = (cotizacion.estado === 'aprobado' || cotizacion.estado === 'en-proceso') && cotizacion.tecnicoAsignado;
+
     return (
       <div
         onClick={() => setDetalleSeleccionado(cotizacion)}
@@ -95,6 +97,40 @@ const ClienteHome = () => {
       >
         <h3 className="font-bold text-gray-900 mb-1 text-base line-clamp-1">{cotizacion.titulo}</h3>
         <p className="text-sm text-gray-500 mb-3">{cotizacion.cliente || cotizacion.usuario || 'Cliente'}</p>
+
+        {/* Badge de técnico asignado */}
+        {tieneAsignacion && (
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                {cotizacion.tecnicoAsignado.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-600">Técnico Asignado</div>
+                <div className="font-bold text-gray-900 text-sm">{cotizacion.tecnicoAsignado}</div>
+              </div>
+            </div>
+            {cotizacion.telefonoTecnico && (
+              <div className="text-xs text-gray-700 flex items-center gap-1 mb-1">
+                <span>📞</span>
+                <span>{cotizacion.telefonoTecnico}</span>
+              </div>
+            )}
+            {cotizacion.fechaProgramada && (
+              <div className="text-xs text-gray-700 flex items-center gap-1">
+                <span>📅</span>
+                <span>{new Date(cotizacion.fechaProgramada).toLocaleDateString('es-ES', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 mb-4">
           <span className="text-sm text-gray-400">📅 {formatearFecha(cotizacion.fecha)}</span>
         </div>

@@ -68,13 +68,22 @@ function Servicios() {
     setLoading(true);
     try {
       const tecnicoSeleccionado = tecnicos.find(t => t.id == formAsignar.tecnicoId);
+
+      // Combinar fecha y hora en un formato ISO para fechaProgramada
+      let fechaProgramada = null;
+      if (formAsignar.fechaServicio && formAsignar.horaServicio) {
+        fechaProgramada = `${formAsignar.fechaServicio}T${formAsignar.horaServicio}:00`;
+      }
+
       const res = await fetch(`${API_URL}/api/servicios/${formAsignar.cotizacionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tecnico: tecnicoSeleccionado.nombre,
+          tecnicoAsignado: tecnicoSeleccionado.nombre,
+          telefonoTecnico: tecnicoSeleccionado.telefono || tecnicoSeleccionado.usuario || '',
           tecnicoId: tecnicoSeleccionado.id,
           estado: 'en-proceso',
+          fechaProgramada: fechaProgramada,
           fechaServicio: formAsignar.fechaServicio,
           horaServicio: formAsignar.horaServicio,
           notas: formAsignar.notas
@@ -105,13 +114,22 @@ function Servicios() {
     setLoading(true);
     try {
       const tecnicoSeleccionado = tecnicos.find(t => t.id == formCrear.tecnicoId);
+
+      // Combinar fecha y hora en un formato ISO para fechaProgramada
+      let fechaProgramada = null;
+      if (formCrear.fechaServicio && formCrear.horaServicio) {
+        fechaProgramada = `${formCrear.fechaServicio}T${formCrear.horaServicio}:00`;
+      }
+
       const res = await fetch(`${API_URL}/api/servicios`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formCrear,
-          tecnico: tecnicoSeleccionado.nombre,
+          tecnicoAsignado: tecnicoSeleccionado.nombre,
+          telefonoTecnico: tecnicoSeleccionado.telefono || tecnicoSeleccionado.usuario || '',
           tecnicoId: tecnicoSeleccionado.id,
+          fechaProgramada: fechaProgramada,
           estado: 'en-proceso'
         })
       });
@@ -133,9 +151,9 @@ function Servicios() {
   // Filtrar servicios
   // Cotizaciones aprobadas: incluye aprobadas por clientes (estadoCliente: 'aprobado') Y aprobadas por técnicos (estado: 'aprobado')
   const cotizacionesAprobadas = servicios.filter(s =>
-    (s.estadoCliente === 'aprobado' || s.estado === 'aprobado') && !s.tecnico
+    (s.estadoCliente === 'aprobado' || s.estado === 'aprobado') && !s.tecnicoAsignado
   );
-  const serviciosEnCurso = servicios.filter(s => s.estado === 'en-proceso' && s.tecnico);
+  const serviciosEnCurso = servicios.filter(s => s.estado === 'en-proceso' && s.tecnicoAsignado);
   const serviciosFinalizados = servicios.filter(s => s.estado === 'finalizado');
 
   {/*################################## 4 Tarjetas ##########################################################*/ }
@@ -521,7 +539,7 @@ function Servicios() {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-purple-600">🔧</span>
                       <span className="text-gray-600">Técnico:</span>
-                      <span className="font-semibold text-purple-700 truncate">{serv.tecnico}</span>
+                      <span className="font-semibold text-purple-700 truncate">{serv.tecnicoAsignado}</span>
                     </div>
 
                     {serv.direccion && (
@@ -621,7 +639,7 @@ function Servicios() {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-green-600">🔧</span>
                       <span className="text-gray-600">Completado por:</span>
-                      <span className="font-semibold text-green-700 truncate">{serv.tecnico}</span>
+                      <span className="font-semibold text-green-700 truncate">{serv.tecnicoAsignado}</span>
                     </div>
 
                     {serv.direccion && (

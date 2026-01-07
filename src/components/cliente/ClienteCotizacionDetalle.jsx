@@ -6,13 +6,10 @@ import Avatar from '../ui/Avatar';
 
 function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
     const [imagenZoom, setImagenZoom] = useState(null);
+    const [modalConfirmacion, setModalConfirmacion] = useState(null); // { tipo: 'aprobado' | 'rechazado' }
 
     const handleRespuesta = async (respuesta) => {
-        const confirmar = respuesta === 'aprobado'
-            ? '¿Confirmar aceptación de esta cotización?'
-            : '¿Rechazar esta cotización?';
-
-        if (!confirm(confirmar)) return;
+        setModalConfirmacion(null);
 
         try {
             const res = await fetch(`${API_URL}/api/servicios/${cotizacion.id}`, {
@@ -174,8 +171,8 @@ function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                             </div>
                         )}
 
-                        {/* Información del técnico (si está en proceso o finalizado) */}
-                        {(esEnProceso || esFinalizado) && cotizacion.tecnicoAsignado && (
+                        {/* Información del técnico (si está aprobado, en proceso o finalizado) */}
+                        {(esAprobado || esEnProceso || esFinalizado) && cotizacion.tecnicoAsignado && (
                             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
                                 <div className="flex items-center gap-3 mb-3">
                                     <Avatar name={cotizacion.tecnicoAsignado} size="md" />
@@ -185,8 +182,19 @@ function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                     </div>
                                 </div>
                                 {cotizacion.telefonoTecnico && (
-                                    <div className="text-sm text-gray-700">
+                                    <div className="text-sm text-gray-700 mb-2">
                                         📞 {cotizacion.telefonoTecnico}
+                                    </div>
+                                )}
+                                {cotizacion.fechaProgramada && (
+                                    <div className="text-sm text-gray-700">
+                                        📅 {new Date(cotizacion.fechaProgramada).toLocaleDateString('es-ES', {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -196,13 +204,13 @@ function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                         {esCotizado && (
                             <div className="grid grid-cols-2 gap-3 mt-4">
                                 <button
-                                    onClick={() => handleRespuesta('aprobado')}
+                                    onClick={() => setModalConfirmacion('aprobado')}
                                     className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition-all"
                                 >
                                     Aceptar
                                 </button>
                                 <button
-                                    onClick={() => handleRespuesta('rechazado')}
+                                    onClick={() => setModalConfirmacion('rechazado')}
                                     className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all"
                                 >
                                     Rechazar
@@ -265,6 +273,73 @@ function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                     >
                         ×
                     </button>
+                </div>
+            )}
+
+            {/* Modal de Confirmación Personalizado */}
+            {modalConfirmacion && (
+                <div
+                    className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn"
+                    onClick={() => setModalConfirmacion(null)}
+                >
+                    <div
+                        className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 transform transition-all animate-scaleIn"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Icono y título */}
+                        <div className="text-center mb-5">
+                            <div className={`w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${modalConfirmacion === 'aprobado'
+                                ? 'bg-green-100'
+                                : 'bg-red-100'
+                                }`}>
+                                <span className="text-5xl">
+                                    {modalConfirmacion === 'aprobado' ? '✓' : '✕'}
+                                </span>
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                                {modalConfirmacion === 'aprobado'
+                                    ? '¿Aceptar cotización?'
+                                    : '¿Rechazar cotización?'}
+                            </h3>
+                            <p className="text-gray-600 text-sm">
+                                {modalConfirmacion === 'aprobado'
+                                    ? 'Al aceptar, el servicio pasará a la siguiente etapa y se asignará un técnico.'
+                                    : 'Al rechazar, esta cotización será marcada como rechazada y no se procesará.'}
+                            </p>
+                        </div>
+
+                        {/* Precio destacado */}
+                        {cotizacion.precioEstimado && (
+                            <div className={`rounded-2xl p-4 mb-5 text-center ${modalConfirmacion === 'aprobado'
+                                ? 'bg-green-50 border border-green-200'
+                                : 'bg-gray-100 border border-gray-200'
+                                }`}>
+                                <div className="text-xs text-gray-600 mb-1">Precio de la cotización</div>
+                                <div className="text-3xl font-bold text-gray-900">
+                                    ${cotizacion.precioEstimado}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Botones de acción */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => setModalConfirmacion(null)}
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3.5 rounded-xl transition-all active:scale-95"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => handleRespuesta(modalConfirmacion)}
+                                className={`font-bold py-3.5 rounded-xl transition-all active:scale-95 text-white ${modalConfirmacion === 'aprobado'
+                                    ? 'bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/30'
+                                    : 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30'
+                                    }`}
+                            >
+                                {modalConfirmacion === 'aprobado' ? 'Sí, aceptar' : 'Sí, rechazar'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
