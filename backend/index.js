@@ -371,4 +371,4 @@ app.post('/api/db/reset', (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server en puerto ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server en puerto ${PORT}`));

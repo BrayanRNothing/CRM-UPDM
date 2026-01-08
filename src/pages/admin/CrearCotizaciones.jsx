@@ -6,6 +6,7 @@ import logoImg from '../../assets/LOGOUPDM.png';
 
 const CrearCotizaciones = () => {
     const [loading, setLoading] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     // Get next quotation number for preview
     const getNextQuotationNumber = () => {
@@ -121,9 +122,11 @@ const CrearCotizaciones = () => {
 
     // Generate PDF
     const generarPDF = () => {
+        if (loading) return; // Prevent multiple clicks
         if (!validarFormulario()) return;
 
         setLoading(true);
+        const loadingToast = toast.loading('Generando PDF...');
 
         try {
             const doc = new jsPDF();
@@ -409,9 +412,11 @@ const CrearCotizaciones = () => {
             const fileName = `${quotationNumber}_${formData.clienteNombre.replace(/\s+/g, '_')}.pdf`;
             doc.save(fileName);
 
+            toast.dismiss(loadingToast);
             toast.success('PDF generado exitosamente');
         } catch (error) {
             console.error('Error al generar PDF:', error);
+            toast.dismiss(loadingToast);
             toast.error('Error al generar el PDF');
         } finally {
             setLoading(false);
@@ -423,67 +428,67 @@ const CrearCotizaciones = () => {
             {/* Header */}
 
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`grid gap-6 ${showPreview ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
                 {/* Form Section */}
-                <div className="space-y-6">
+                <div className={`${!showPreview ? 'grid grid-cols-2 gap-4' : ''} space-y-3`}>
                     {/* Client Information */}
-                    <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">Información del Cliente</h2>
+                    <div className="bg-white rounded-xl border-2 border-gray-200 p-4">
+                        <h2 className="text-base font-bold text-gray-800 mb-2">Información del Cliente</h2>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Nombre del Cliente *</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Nombre del Cliente *</label>
                                 <input
                                     type="text"
                                     value={formData.clienteNombre}
                                     onChange={(e) => setFormData({ ...formData, clienteNombre: e.target.value })}
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Nombre completo o empresa"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Empresa</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Empresa</label>
                                 <input
                                     type="text"
                                     value={formData.clienteEmpresa}
                                     onChange={(e) => setFormData({ ...formData, clienteEmpresa: e.target.value })}
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Nombre de la empresa"
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Email</label>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Email</label>
                                     <input
                                         type="email"
                                         value={formData.clienteEmail}
                                         onChange={(e) => setFormData({ ...formData, clienteEmail: e.target.value })}
-                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         placeholder="correo@ejemplo.com"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Tefoloono</label>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tefoloono</label>
                                     <input
                                         type="tel"
                                         value={formData.clienteTelefono}
                                         onChange={(e) => setFormData({ ...formData, clienteTelefono: e.target.value })}
-                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         placeholder="(123) 456-7890"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Dirección</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Dirección</label>
                                 <input
                                     type="text"
                                     value={formData.clienteDireccion}
                                     onChange={(e) => setFormData({ ...formData, clienteDireccion: e.target.value })}
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Calle, número, colonia, ciudad"
                                 />
                             </div>
@@ -496,57 +501,57 @@ const CrearCotizaciones = () => {
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Título *</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Título *</label>
                                 <input
                                     type="text"
                                     value={formData.titulo}
                                     onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Ej: Instalación de Sistema de Seguridad"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Descripción</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Descripción</label>
                                 <textarea
                                     value={formData.descripcion}
                                     onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                                     rows="3"
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                                     placeholder="Descripción general del proyecto..."
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Fecha</label>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Fecha</label>
                                     <input
                                         type="date"
                                         value={formData.fecha}
                                         onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Validez (días)</label>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Validez (días)</label>
                                     <input
                                         type="number"
                                         value={formData.validez}
                                         onChange={(e) => setFormData({ ...formData, validez: e.target.value })}
-                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         min="1"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Creada por</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Creada por</label>
                                 <input
                                     type="text"
                                     value={formData.creadoPor}
                                     onChange={(e) => setFormData({ ...formData, creadoPor: e.target.value })}
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Nombre de quien crea la cotización"
                                 />
                             </div>
@@ -554,7 +559,7 @@ const CrearCotizaciones = () => {
                     </div>
 
                     {/* Line Items */}
-                    <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                    <div className="bg-white rounded-xl border-2 border-gray-200 p-4 row-span-2">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-lg font-bold text-gray-800">📦 Items / Servicios</h2>
                             <button
@@ -567,7 +572,7 @@ const CrearCotizaciones = () => {
 
                         <div className="space-y-3">
                             {items.map((item, index) => (
-                                <div key={item.id} className="border-2 border-gray-200 rounded-lg p-3">
+                                <div key={item.id} className="rounded-lg p-3">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs font-bold text-gray-500">ITEM #{index + 1}</span>
                                         {items.length > 1 && (
@@ -585,7 +590,7 @@ const CrearCotizaciones = () => {
                                             type="text"
                                             value={item.descripcion}
                                             onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                             placeholder="Descripción del producto/servicio"
                                         />
 
@@ -632,11 +637,11 @@ const CrearCotizaciones = () => {
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Moneda</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Moneda</label>
                                 <select
                                     value={formData.moneda}
                                     onChange={(e) => setFormData({ ...formData, moneda: e.target.value })}
-                                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 >
                                     <option value="MXN">Peso Mexicano (MXN)</option>
                                     <option value="USD">Dólar Estadounidense (USD)</option>
@@ -645,12 +650,12 @@ const CrearCotizaciones = () => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">IVA (%)</label>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">IVA (%)</label>
                                     <input
                                         type="number"
                                         value={formData.impuesto}
                                         onChange={(e) => setFormData({ ...formData, impuesto: e.target.value })}
-                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         min="0"
                                         max="100"
                                         step="0.1"
@@ -658,12 +663,12 @@ const CrearCotizaciones = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Descuento (%)</label>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Descuento (%)</label>
                                     <input
                                         type="number"
                                         value={formData.descuento}
                                         onChange={(e) => setFormData({ ...formData, descuento: e.target.value })}
-                                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         min="0"
                                         max="100"
                                         step="0.1"
@@ -673,153 +678,187 @@ const CrearCotizaciones = () => {
                         </div>
                     </div>
 
-                    {/* Notes */}
-                    <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">📝 Notas</h2>
-                        <textarea
-                            value={formData.notas}
-                            onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-                            rows="3"
-                            className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                            placeholder="Notas adicionales sobre la cotización..."
-                        />
-                    </div>
+                    {/* Notes and Terms Combined */}
+                    <div className="bg-white rounded-xl border-2 border-gray-200 p-4">
+                        <h2 className="text-base font-bold text-gray-800 mb-2">📝 Notas y Términos</h2>
 
-                    {/* Terms and Conditions */}
-                    <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">📜 Términos y Condiciones</h2>
-                        <textarea
-                            value={formData.terminosCondiciones}
-                            onChange={(e) => setFormData({ ...formData, terminosCondiciones: e.target.value })}
-                            rows="5"
-                            className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                            placeholder="Términos y condiciones de la cotización..."
-                        />
+                        <div className="space-y-2">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Notas</label>
+                                <textarea
+                                    value={formData.notas}
+                                    onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                                    rows="2"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                    placeholder="Notas adicionales sobre la cotización..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Términos y Condiciones</label>
+                                <textarea
+                                    value={formData.terminosCondiciones}
+                                    onChange={(e) => setFormData({ ...formData, terminosCondiciones: e.target.value })}
+                                    rows="3"
+                                    className="w-full px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                    placeholder="Términos y condiciones de la cotización..."
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Preview Section */}
-                <div className="lg:sticky lg:top-0 lg:h-screen lg:overflow-auto">
-                    <div className="bg-white rounded-xl border-2 border-gray-400 p-6 shadow-lg">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">Vista Previa</h2>
-
-                        {/* Preview Header */}
-                        <div className="border-b-2 border-gray-200 pb-4 mb-4">
-                            <div className="flex items-start justify-between">
-                                <img src={logoImg} alt="INFINIGUARD Logo" className="h-12 object-contain" />
-                                <div className="text-right">
-                                    <div className="text-xs font-bold text-gray-500 uppercase">Cotización</div>
-                                    <div className="text-lg font-bold text-gray-700">{previewQuotationNumber}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Preview Content */}
-                        <div className="space-y-4 text-sm">
-                            <div>
-                                <h4 className="font-bold text-lg text-center mb-2 text-gray-700">COTIZACIÓN</h4>
-                                <div className="flex justify-between text-xs text-gray-600">
-                                    <span>Fecha: {formData.fecha}</span>
-                                    <span>Válida: {formData.validez} días</span>
-                                </div>
+                {/* Preview Section - Only show when showPreview is true */}
+                {showPreview && (
+                    <div className="lg:sticky lg:top-0 lg:h-screen lg:overflow-auto">
+                        <div className="bg-white rounded-xl border-2 border-gray-400 p-6 shadow-lg">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-bold text-gray-800">Vista Previa</h2>
+                                <button
+                                    onClick={() => setShowPreview(!showPreview)}
+                                    className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition flex items-center gap-2"
+                                >
+                                    Ocultar
+                                </button>
                             </div>
 
-                            {formData.titulo && (
-                                <div className="font-bold text-gray-800">{formData.titulo}</div>
-                            )}
-
-                            {/* Client Info */}
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <div className="text-xs space-y-1.5">
-                                    <div className="break-words"><span className="font-bold">Cliente:</span> {formData.clienteNombre || 'Sin especificar'}</div>
-                                    {formData.clienteEmpresa && <div className="break-words"><span className="font-bold">Empresa:</span> {formData.clienteEmpresa}</div>}
-                                    {formData.clienteEmail && <div className="break-words"><span className="font-bold">Email:</span> {formData.clienteEmail}</div>}
-                                    {formData.clienteTelefono && <div className="break-words"><span className="font-bold">Tel:</span> {formData.clienteTelefono}</div>}
-                                    {formData.clienteDireccion && <div className="break-words"><span className="font-bold">Dir:</span> {formData.clienteDireccion}</div>}
+                            {/* Preview Header */}
+                            <div className="border-b-2 border-gray-200 pb-4 mb-4">
+                                <div className="flex items-start justify-between">
+                                    <img src={logoImg} alt="INFINIGUARD Logo" className="h-12 object-contain" />
+                                    <div className="text-right">
+                                        <div className="text-xs font-bold text-gray-500 uppercase">Cotización</div>
+                                        <div className="text-lg font-bold text-gray-700">{previewQuotationNumber}</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {formData.descripcion && (
-                                <div className="text-xs text-gray-700">
-                                    <div className="font-bold mb-1">Descripción:</div>
-                                    <div className="whitespace-pre-line">{formData.descripcion}</div>
-                                </div>
-                            )}
-
-                            {/* Items Table */}
-                            <div className="border border-gray-300 rounded-lg overflow-hidden">
-                                <table className="w-full text-xs">
-                                    <thead className="bg-gray-600 text-white">
-                                        <tr>
-                                            <th className="p-2 text-left">Descripción</th>
-                                            <th className="p-2 text-center w-16">Cant.</th>
-                                            <th className="p-2 text-right w-20">Precio</th>
-                                            <th className="p-2 text-right w-24">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {items.map((item, index) => (
-                                            <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                                <td className="p-2 border-t">{item.descripcion || 'Sin descripción'}</td>
-                                                <td className="p-2 border-t text-center">{item.cantidad}</td>
-                                                <td className="p-2 border-t text-right">{formatCurrency(item.precioUnitario)}</td>
-                                                <td className="p-2 border-t text-right font-semibold">{formatCurrency(calcularSubtotal(item))}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Totals */}
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span>Subtotal:</span>
-                                    <span className="font-semibold">{formatCurrency(calcularTotalItems())}</span>
+                            {/* Preview Content */}
+                            <div className="space-y-4 text-sm">
+                                <div>
+                                    <h4 className="font-bold text-lg text-center mb-2 text-gray-700">COTIZACIÓN</h4>
+                                    <div className="flex justify-between text-xs text-gray-600">
+                                        <span>Fecha: {formData.fecha}</span>
+                                        <span>Válida: {formData.validez} días</span>
+                                    </div>
                                 </div>
 
-                                {parseFloat(formData.descuento) > 0 && (
-                                    <div className="flex justify-between text-red-600">
-                                        <span>Descuento ({formData.descuento}%):</span>
-                                        <span className="font-semibold">-{formatCurrency(calcularDescuento())}</span>
+                                {formData.titulo && (
+                                    <div className="font-bold text-gray-800">{formData.titulo}</div>
+                                )}
+
+                                {/* Client Info */}
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    <div className="text-xs space-y-1.5">
+                                        <div className="break-words"><span className="font-bold">Cliente:</span> {formData.clienteNombre || 'Sin especificar'}</div>
+                                        {formData.clienteEmpresa && <div className="break-words"><span className="font-bold">Empresa:</span> {formData.clienteEmpresa}</div>}
+                                        {formData.clienteEmail && <div className="break-words"><span className="font-bold">Email:</span> {formData.clienteEmail}</div>}
+                                        {formData.clienteTelefono && <div className="break-words"><span className="font-bold">Tel:</span> {formData.clienteTelefono}</div>}
+                                        {formData.clienteDireccion && <div className="break-words"><span className="font-bold">Dir:</span> {formData.clienteDireccion}</div>}
+                                    </div>
+                                </div>
+
+                                {formData.descripcion && (
+                                    <div className="text-xs text-gray-700">
+                                        <div className="font-bold mb-1">Descripción:</div>
+                                        <div className="whitespace-pre-line">{formData.descripcion}</div>
                                     </div>
                                 )}
 
-                                <div className="flex justify-between">
-                                    <span>IVA ({formData.impuesto}%):</span>
-                                    <span className="font-semibold">{formatCurrency(calcularImpuesto())}</span>
+                                {/* Items Table */}
+                                <div className="border border-gray-300 rounded-lg overflow-hidden">
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-gray-600 text-white">
+                                            <tr>
+                                                <th className="p-2 text-left">Descripción</th>
+                                                <th className="p-2 text-center w-16">Cant.</th>
+                                                <th className="p-2 text-right w-20">Precio</th>
+                                                <th className="p-2 text-right w-24">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {items.map((item, index) => (
+                                                <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                                    <td className="p-2 border-t">{item.descripcion || 'Sin descripción'}</td>
+                                                    <td className="p-2 border-t text-center">{item.cantidad}</td>
+                                                    <td className="p-2 border-t text-right">{formatCurrency(item.precioUnitario)}</td>
+                                                    <td className="p-2 border-t text-right font-semibold">{formatCurrency(calcularSubtotal(item))}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
 
-                                <div className="flex justify-between text-lg font-bold text-gray-700 pt-2 border-t-2 border-gray-600">
-                                    <span>TOTAL:</span>
-                                    <span>{formatCurrency(calcularTotal())}</span>
+                                {/* Totals */}
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span>Subtotal:</span>
+                                        <span className="font-semibold">{formatCurrency(calcularTotalItems())}</span>
+                                    </div>
+
+                                    {parseFloat(formData.descuento) > 0 && (
+                                        <div className="flex justify-between text-red-600">
+                                            <span>Descuento ({formData.descuento}%):</span>
+                                            <span className="font-semibold">-{formatCurrency(calcularDescuento())}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between">
+                                        <span>IVA ({formData.impuesto}%):</span>
+                                        <span className="font-semibold">{formatCurrency(calcularImpuesto())}</span>
+                                    </div>
+
+                                    <div className="flex justify-between text-lg font-bold text-gray-700 pt-2 border-t-2 border-gray-600">
+                                        <span>TOTAL:</span>
+                                        <span>{formatCurrency(calcularTotal())}</span>
+                                    </div>
                                 </div>
+
+                                {formData.notas && (
+                                    <div className="text-xs text-gray-700 border-t pt-3">
+                                        <div className="font-bold mb-1">Notas:</div>
+                                        <div className="whitespace-pre-line">{formData.notas}</div>
+                                    </div>
+                                )}
+
+                                {formData.terminosCondiciones && (
+                                    <div className="text-xs text-gray-700 border-t pt-3">
+                                        <div className="font-bold mb-1">Términos y Condiciones:</div>
+                                        <div className="whitespace-pre-line">{formData.terminosCondiciones}</div>
+                                    </div>
+                                )}
                             </div>
 
-                            {formData.notas && (
-                                <div className="text-xs text-gray-700 border-t pt-3">
-                                    <div className="font-bold mb-1">Notas:</div>
-                                    <div className="whitespace-pre-line">{formData.notas}</div>
-                                </div>
-                            )}
-
-                            {formData.terminosCondiciones && (
-                                <div className="text-xs text-gray-700 border-t pt-3">
-                                    <div className="font-bold mb-1">Términos y Condiciones:</div>
-                                    <div className="whitespace-pre-line">{formData.terminosCondiciones}</div>
-                                </div>
-                            )}
+                            {/* Generate Button */}
+                            <button
+                                onClick={generarPDF}
+                                disabled={loading}
+                                className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                            >
+                                {loading ? '⏳ Generando PDF...' : '📄 Generar y Descargar PDF'}
+                            </button>
                         </div>
+                    </div>
+                )}
 
-                        {/* Generate Button */}
+                {/* Floating buttons when preview is hidden */}
+                {!showPreview && (
+                    <div className="fixed bottom-6 right-6 flex gap-3 z-50">
                         <button
                             onClick={generarPDF}
                             disabled={loading}
-                            className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-2xl transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? '⏳ Generando PDF...' : '📄 Generar y Descargar PDF'}
+                            {loading ? '⏳ Generando...' : '📄 Descargar PDF'}
+                        </button>
+                        <button
+                            onClick={() => setShowPreview(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-2xl transition flex items-center gap-2"
+                        >
+                            Mostrar Vista Previa
                         </button>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
