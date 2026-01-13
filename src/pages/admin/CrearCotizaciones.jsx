@@ -841,7 +841,7 @@ const CrearCotizaciones = () => {
                     </div>
                 )}
 
-                {/* Floating buttons when preview is hidden */}
+                {/* botones de decagar y esos cuando no se muestra la vista previa */}
                 {!showPreview && (
                     <div className="fixed bottom-6 right-6 flex gap-3 z-50">
                         <button

@@ -17,7 +17,12 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard.jsx'));
 const Servicios = lazy(() => import('./pages/admin/Servicios.jsx'));
 const Cotizaciones = lazy(() => import('./pages/admin/Cotizaciones.jsx'));
 const Usuarios = lazy(() => import('./pages/admin/Usuarios.jsx'));
+const Comisiones = lazy(() => import('./pages/admin/Comisiones.jsx'));
+const Documentos = lazy(() => import('./pages/admin/Documentos.jsx'));
 const CrearCotizaciones = lazy(() => import('./pages/admin/CrearCotizaciones.jsx'));
+const CrearOrdenTrabajo = lazy(() => import('./pages/admin/CrearOrdenTrabajo.jsx'));
+const CrearReporteTrabajo = lazy(() => import('./pages/admin/CrearReporteTrabajo.jsx'));
+const HistorialDocumentos = lazy(() => import('./pages/admin/HistorialDocumentos.jsx'));
 const Ajustes = lazy(() => import('./pages/admin/Ajustes.jsx'));
 const TecnicoHome = lazy(() => import('./pages/tecnico/TecnicoHome.jsx'));
 const NuevaSolicitud = lazy(() => import('./pages/tecnico/NuevaSolicitud.jsx'));
@@ -99,9 +104,13 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="cotizaciones" element={<Cotizaciones />} />
             <Route path="servicios" element={<Servicios />} />
-            <Route path="comisiones" element={<div className="p-10 text-gray-600">Página de Comisiones (En construcción)</div>} />
+            <Route path="comisiones" element={<Comisiones />} />
             <Route path="usuarios" element={<Usuarios />} />
+            <Route path="documentos" element={<Documentos />} />
             <Route path="crear-cotizaciones" element={<CrearCotizaciones />} />
+            <Route path="crear-orden-trabajo" element={<CrearOrdenTrabajo />} />
+            <Route path="crear-reporte-trabajo" element={<CrearReporteTrabajo />} />
+            <Route path="historial-documentos" element={<HistorialDocumentos />} />
             <Route path="ajustes" element={<Ajustes />} />
           </Route>
 

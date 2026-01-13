@@ -5,6 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import Database from 'better-sqlite3';
+import { migrarDocumentos } from './migrations/documentos.js';
+import crearRutasDocumentos from './routes/documentos.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -105,6 +107,11 @@ const initDB = () => {
   } catch (e) {
     // Columna ya existe
   }
+  try {
+    db.exec(`ALTER TABLE servicios ADD COLUMN porcentajeComision REAL DEFAULT 0`);
+  } catch (e) {
+    // Columna ya existe
+  }
 
   // Migrar datos existentes de 'tecnico' a 'tecnicoAsignado'
   try {
@@ -120,10 +127,30 @@ const initDB = () => {
   const stmt = db.prepare('SELECT count(*) as count FROM usuarios');
   if (stmt.get().count === 0) {
     const insert = db.prepare('INSERT INTO usuarios (email, password, rol, nombre) VALUES (?, ?, ?, ?)');
-    insert.run('administrador@infiniguard.com', '123', 'admin', 'Administrador');
+
+    // Usuario Admin por defecto
+    insert.run('admin@infiniguard.com', 'admin123', 'admin', 'Administrador');
+
+    // Usuario Técnico por defecto
+    insert.run('tecnico@infiniguard.com', 'tecnico123', 'tecnico', 'Técnico Demo');
+
+    // Usuario Distribuidor por defecto
+    insert.run('distribuidor@infiniguard.com', 'dist123', 'distribuidor', 'Distribuidor Demo');
+
+    // Usuario Cliente por defecto
+    insert.run('cliente@infiniguard.com', 'cliente123', 'cliente', 'Cliente Demo');
+
+    console.log('✅ Usuarios por defecto creados:');
+    console.log('   Admin: admin@infiniguard.com / admin123');
+    console.log('   Técnico: tecnico@infiniguard.com / tecnico123');
+    console.log('   Distribuidor: distribuidor@infiniguard.com / dist123');
+    console.log('   Cliente: cliente@infiniguard.com / cliente123');
   }
 };
 initDB();
+
+// Migrar base de datos para documentos
+migrarDocumentos(db);
 
 // --- CONFIGURACIÓN DE ARCHIVOS ---
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -141,6 +168,9 @@ const upload = multer({ storage });
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Registrar rutas de documentos
+app.use('/api', crearRutasDocumentos(db));
 
 // --- RUTAS ---
 
@@ -285,6 +315,11 @@ app.put('/api/servicios/:id', upload.single('archivo'), (req, res) => {
 
     if (update.notas) {
       db.prepare('UPDATE servicios SET notas = ? WHERE id = ?').run(update.notas, id);
+    }
+
+    // Actualizar porcentaje de comisión
+    if (update.porcentajeComision !== undefined) {
+      db.prepare('UPDATE servicios SET porcentajeComision = ? WHERE id = ?').run(update.porcentajeComision, id);
     }
 
     res.json({ success: true });

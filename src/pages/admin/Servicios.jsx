@@ -193,7 +193,6 @@ function Servicios() {
             gradient="from-blue-500/80 to-blue-600/80 hover:from-blue-600/90 hover:to-blue-700/90"
             icon="➕"
             titulo="Crear Solicitud"
-            badgeText="Nuevo Servicio"
             onClick={() => setVistaActual('crear')}
           />
         </div>

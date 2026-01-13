@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import ServiceCard from '../../components/ui/ServiceCard';
+import ServicioDetalleModal from '../../components/tecnico/ServicioDetalleModal';
+import ConfirmarFinalizarModal from '../../components/tecnico/ConfirmarFinalizarModal';
 import API_URL from '../../config/api';
 
 
@@ -17,6 +19,10 @@ const TecnicoHome = () => {
   const [usuario, setUsuario] = useState(null);
   // Estado de carga
   const [loading, setLoading] = useState(true);
+  // Servicio seleccionado para ver detalles
+  const [servicioSeleccionado, setServicioSeleccionado] = useState(null);
+  // Servicio a finalizar
+  const [servicioAFinalizar, setServicioAFinalizar] = useState(null);
 
 
   // 1. Cargar datos al iniciar o refrescar
@@ -76,19 +82,36 @@ const TecnicoHome = () => {
 
   // 3. Marcar una tarea como finalizada (PUT al backend)
   const handleFinalizar = async (id) => {
-    if (!window.confirm("¿Confirmas que terminaste este servicio?")) return;
+    // Buscar el servicio para mostrarlo en el modal
+    const servicio = tareas.find(t => t.id === id);
+    if (servicio) {
+      setServicioAFinalizar(servicio);
+    }
+  };
+
+  // Confirmar finalización del servicio
+  const confirmarFinalizacion = async (notasFinales) => {
+    if (!servicioAFinalizar) return;
+
     try {
-      const res = await fetch(`${API_URL}/api/servicios/${id}`, {
+      const res = await fetch(`${API_URL}/api/servicios/${servicioAFinalizar.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'finalizado' })
+        body: JSON.stringify({
+          estado: 'finalizado',
+          notasFinales: notasFinales || undefined
+        })
       });
       if (res.ok) {
-        alert("¡Excelente trabajo! Servicio registrado como completado.");
+        toast.success('¡Excelente trabajo! Servicio completado.');
+        setServicioAFinalizar(null);
         cargarDatos(); // Recargar para moverlo al historial
+      } else {
+        toast.error('Error al finalizar el servicio');
       }
     } catch (error) {
       console.error(error);
+      toast.error('Error de conexión');
     }
   };
 
@@ -113,18 +136,7 @@ const TecnicoHome = () => {
           direccion={t.direccion || 'Ubicación no especificada'}
           fecha={t.fecha}
           estado={t.estado}
-          onDetalles={() => {
-            // Muestra detalles en un alert
-            const detalles = `
-📝 ${t.titulo}
-🏭 ${t.cliente}
-📍 ${t.direccion || 'N/A'}
-📞 ${t.telefono || 'N/A'}
-📄 Tipo: ${t.tipo}
-📝 Notas: ${t.notas || 'Sin notas'}
-            `;
-            alert(detalles);
-          }}
+          onDetalles={() => setServicioSeleccionado(t)}
           onFinalizar={handleFinalizar}
         />
       ));
@@ -145,17 +157,7 @@ const TecnicoHome = () => {
           direccion={t.direccion || 'Finalizado'}
           fecha={t.fecha}
           estado={t.estado}
-          onDetalles={() => {
-            // Muestra detalles en un alert
-            const detalles = `
-📝 ${t.titulo}
-🏭 ${t.cliente}
-📍 ${t.direccion || 'N/A'}
-📞 ${t.telefono || 'N/A'}
-✅ Servicio completado
-            `;
-            alert(detalles);
-          }}
+          onDetalles={() => setServicioSeleccionado(t)}
         />
       ));
     }
@@ -290,6 +292,22 @@ const TecnicoHome = () => {
         {renderContenido()}
       </div>
 
+      {/* Modal de Detalles */}
+      {servicioSeleccionado && (
+        <ServicioDetalleModal
+          servicio={servicioSeleccionado}
+          onClose={() => setServicioSeleccionado(null)}
+        />
+      )}
+
+      {/* Modal de Confirmación de Finalización */}
+      {servicioAFinalizar && (
+        <ConfirmarFinalizarModal
+          servicio={servicioAFinalizar}
+          onConfirm={confirmarFinalizacion}
+          onCancel={() => setServicioAFinalizar(null)}
+        />
+      )}
     </div>
   );
 };

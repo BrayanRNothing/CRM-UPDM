@@ -39,7 +39,7 @@ const AdminDashboard = () => {
 
       // Calcular estadísticas
       const cotizacionesPendientes = servicios.filter(s => s.estado === 'pendiente').length;
-      const serviciosPendientes = servicios.filter(s => s.estadoCliente === 'aprobado' || s.estado === 'aprobado-cliente').length;
+      const serviciosPendientes = servicios.filter(s => s.estado === 'aprobado').length;
       const serviciosActivos = servicios.filter(s => s.estado === 'en-proceso').length;
       const serviciosFinalizados = servicios.filter(s => s.estado === 'finalizado').length;
       const tecnicos = usuarios.filter(u => u.rol === 'tecnico').length;
@@ -99,40 +99,40 @@ const AdminDashboard = () => {
 
       {/* 2. Grid de Estadísticas (KPIs) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Link to="/admin/cotizaciones" className="bg-linear-to-br from-orange-500/80 to-orange-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
-          <div className="flex flex-col items-center text-center">
+        <Link to="/admin/cotizaciones" className="bg-linear-to-br from-orange-500/80 to-orange-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10 min-h-[140px]">
+          <div className="flex flex-col items-center justify-center text-center h-full">
             <div className="text-4xl mb-3">📄</div>
             <p className="text-orange-100 text-xs font-medium mb-2">Cotizaciones Pendientes</p>
             <p className="text-3xl font-bold">{stats.cotizacionesPendientes}</p>
           </div>
         </Link>
 
-        <Link to="/admin/servicios" className="bg-linear-to-br from-yellow-500/80 to-yellow-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
-          <div className="flex flex-col items-center text-center">
+        <Link to="/admin/servicios" className="bg-linear-to-br from-yellow-500/80 to-yellow-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10 min-h-[140px]">
+          <div className="flex flex-col items-center justify-center text-center h-full">
             <div className="text-4xl mb-3">⏳</div>
             <p className="text-yellow-100 text-xs font-medium mb-2">Servicios Pendientes</p>
             <p className="text-3xl font-bold">{stats.serviciosPendientes}</p>
           </div>
         </Link>
 
-        <Link to="/admin/servicios" className="bg-linear-to-br from-purple-500/80 to-purple-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
-          <div className="flex flex-col items-center text-center">
+        <Link to="/admin/servicios" className="bg-linear-to-br from-purple-500/80 to-purple-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10 min-h-[140px]">
+          <div className="flex flex-col items-center justify-center text-center h-full">
             <div className="text-4xl mb-3">⚙️</div>
             <p className="text-purple-100 text-xs font-medium mb-2">Servicios Activos</p>
             <p className="text-3xl font-bold">{stats.serviciosActivos}</p>
           </div>
         </Link>
 
-        <Link to="/admin/servicios" className="bg-linear-to-br from-green-500/80 to-green-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
-          <div className="flex flex-col items-center text-center">
+        <Link to="/admin/servicios" className="bg-linear-to-br from-green-500/80 to-green-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10 min-h-[140px]">
+          <div className="flex flex-col items-center justify-center text-center h-full">
             <div className="text-4xl mb-3">✅</div>
             <p className="text-green-100 text-xs font-medium mb-2">Servicios Finalizados</p>
             <p className="text-3xl font-bold">{stats.serviciosFinalizados}</p>
           </div>
         </Link>
 
-        <Link to="/admin/usuarios" className="bg-linear-to-br from-blue-500/80 to-blue-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10">
-          <div className="flex flex-col items-center text-center">
+        <Link to="/admin/usuarios" className="bg-linear-to-br from-blue-500/80 to-blue-600/80 backdrop-blur-md rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105 border border-white/10 min-h-[140px]">
+          <div className="flex flex-col items-center justify-center text-center h-full">
             <div className="text-4xl mb-3">👥</div>
             <p className="text-blue-100 text-xs font-medium mb-2">Total Usuarios</p>
             <p className="text-3xl font-bold">{stats.totalUsuarios}</p>

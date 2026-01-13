@@ -1,9 +1,9 @@
 // Detección automática de entorno
 const isDevelopment = import.meta.env.MODE === 'development';
 
-// URL del Backend
-const API_URL = isDevelopment
-    ? 'http://localhost:4000'  // Desarrollo local
-    : 'https://updm-infiniguard-production.up.railway.app';  // Producción en Railway
+// URL del Backend - Usar localhost para desarrollo
+const API_URL = 'http://localhost:4000';  // Backend local
 
+// URL del Backend - Siempre usar Railway
+// const API_URL = 'https://updm-infiniguard-production.up.railway.app'; 
 export default API_URL;
