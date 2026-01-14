@@ -32,6 +32,30 @@ function CrearOrdenTrabajo() {
         { id: 1, partida: 1, cantidad: 1, clave: '', descripcion: '', atributos: '', fechaEntrega: '', unidad: '' }
     ]);
 
+    // Checklist de verificación
+    const [checklist, setChecklist] = useState([
+        { id: 1, pregunta: '¿Se verificó la limpieza de la superficie?', respuesta: '', comentarios: '' },
+        { id: 2, pregunta: '¿Se aplicó el producto según especificaciones?', respuesta: '', comentarios: '' },
+        { id: 3, pregunta: '¿Se respetaron los tiempos de secado?', respuesta: '', comentarios: '' },
+        { id: 4, pregunta: '¿Se utilizó el equipo de protección adecuado?', respuesta: '', comentarios: '' },
+        { id: 5, pregunta: '¿Se verificó la calidad del acabado?', respuesta: '', comentarios: '' },
+        { id: 6, pregunta: '¿Se cumplieron las medidas de seguridad?', respuesta: '', comentarios: '' },
+        { id: 7, pregunta: '¿Se documentaron las condiciones ambientales?', respuesta: '', comentarios: '' },
+        { id: 8, pregunta: '¿Se realizó prueba de adherencia?', respuesta: '', comentarios: '' },
+        { id: 9, pregunta: '¿Se verificó el espesor de la capa?', respuesta: '', comentarios: '' },
+        { id: 10, pregunta: '¿Se entregó la documentación al cliente?', respuesta: '', comentarios: '' },
+        { id: 11, pregunta: '¿Se realizó limpieza del área de trabajo?', respuesta: '', comentarios: '' },
+        { id: 12, pregunta: '¿Se verificó la satisfacción del cliente?', respuesta: '', comentarios: '' },
+        { id: 13, pregunta: '¿Se registraron los materiales utilizados?', respuesta: '', comentarios: '' },
+        { id: 14, pregunta: '¿Se cumplió con el tiempo estimado?', respuesta: '', comentarios: '' },
+        { id: 15, pregunta: '¿Se identificaron áreas de mejora?', respuesta: '', comentarios: '' },
+        { id: 16, pregunta: '¿Se actualizó el inventario?', respuesta: '', comentarios: '' },
+        { id: 17, pregunta: '¿Se tomaron fotografías del trabajo?', respuesta: '', comentarios: '' },
+        { id: 18, pregunta: '¿Se firmó el acta de entrega?', respuesta: '', comentarios: '' },
+        { id: 19, pregunta: '¿Se programó el seguimiento?', respuesta: '', comentarios: '' },
+        { id: 20, pregunta: '¿Se archivó la documentación?', respuesta: '', comentarios: '' }
+    ]);
+
     // Handlers
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -65,6 +89,12 @@ function CrearOrdenTrabajo() {
 
     const actualizarItem = (id, campo, valor) => {
         setItems(items.map(item =>
+            item.id === id ? { ...item, [campo]: valor } : item
+        ));
+    };
+
+    const actualizarChecklist = (id, campo, valor) => {
+        setChecklist(checklist.map(item =>
             item.id === id ? { ...item, [campo]: valor } : item
         ));
     };
