@@ -128,23 +128,12 @@ const initDB = () => {
   if (stmt.get().count === 0) {
     const insert = db.prepare('INSERT INTO usuarios (email, password, rol, nombre) VALUES (?, ?, ?, ?)');
 
-    // Usuario Admin por defecto
-    insert.run('admin@infiniguard.com', 'admin123', 'admin', 'Administrador');
+    // Usuario Admin único
+    insert.run('admin@infiniguard.com', '123', 'admin', 'Administrador');
 
-    // Usuario Técnico por defecto
-    insert.run('tecnico@infiniguard.com', 'tecnico123', 'tecnico', 'Técnico Demo');
-
-    // Usuario Distribuidor por defecto
-    insert.run('distribuidor@infiniguard.com', 'dist123', 'distribuidor', 'Distribuidor Demo');
-
-    // Usuario Cliente por defecto
-    insert.run('cliente@infiniguard.com', 'cliente123', 'cliente', 'Cliente Demo');
-
-    console.log('✅ Usuarios por defecto creados:');
-    console.log('   Admin: admin@infiniguard.com / admin123');
-    console.log('   Técnico: tecnico@infiniguard.com / tecnico123');
-    console.log('   Distribuidor: distribuidor@infiniguard.com / dist123');
-    console.log('   Cliente: cliente@infiniguard.com / cliente123');
+    console.log('✅ Usuario administrador creado:');
+    console.log('   Email: admin@infiniguard.com');
+    console.log('   Password: 123');
   }
 };
 initDB();
