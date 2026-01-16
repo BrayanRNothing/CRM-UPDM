@@ -149,6 +149,14 @@ const initDB = () => {
     console.log('   Email: admin@infiniguard.com');
     console.log('   Password: 123');
   }
+
+  // Migrar rol 'cliente' a 'usuario' en la tabla de usuarios
+  try {
+    db.prepare("UPDATE usuarios SET rol = 'usuario' WHERE rol = 'cliente'").run();
+    console.log("✅ Migración de roles completada: 'cliente' -> 'usuario'");
+  } catch (e) {
+    console.error('Error migrando roles:', e.message);
+  }
 };
 initDB();
 
@@ -342,7 +350,7 @@ app.post('/api/register', (req, res) => {
     return res.status(409).json({ success: false, message: 'El email ya está registrado' });
   }
   const stmt = db.prepare('INSERT INTO usuarios (email, password, rol, nombre) VALUES (?, ?, ?, ?)');
-  const info = stmt.run(email, password, 'cliente', email.split('@')[0]);
+  const info = stmt.run(email, password, 'usuario', email.split('@')[0]);
   const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(info.lastInsertRowid);
   res.json({ success: true, user });
 });
