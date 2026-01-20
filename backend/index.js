@@ -38,6 +38,20 @@ const initDB = async () => {
       )
     `);
 
+    // Tabla de Cotizaciones Independientes
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cotizaciones (
+        id SERIAL PRIMARY KEY,
+        numero TEXT UNIQUE,
+        fecha DATE,
+        cliente_nombre TEXT,
+        titulo TEXT,
+        datos JSONB,
+        pdf_url TEXT,
+        total REAL
+      )
+    `);
+
     // Tabla Servicios
     await pool.query(`
       CREATE TABLE IF NOT EXISTS servicios (
@@ -372,6 +386,54 @@ app.delete('/api/usuarios/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// --- ENDPOINTS COTIZACIONES ---
+app.get('/api/standalone-cotizaciones', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM cotizaciones ORDER BY fecha DESC, numero DESC');
+    res.json({ success: true, cotizaciones: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/standalone-cotizaciones', async (req, res) => {
+  const { numero, fecha, cliente_nombre, titulo, datos, pdf_url, total } = req.body;
+  try {
+    await pool.query(`
+      INSERT INTO cotizaciones (numero, fecha, cliente_nombre, titulo, datos, pdf_url, total)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (numero) DO UPDATE SET
+        fecha = EXCLUDED.fecha,
+        cliente_nombre = EXCLUDED.cliente_nombre,
+        titulo = EXCLUDED.titulo,
+        datos = EXCLUDED.datos,
+        pdf_url = EXCLUDED.pdf_url,
+        total = EXCLUDED.total
+    `, [numero, fecha, cliente_nombre, titulo, JSON.stringify(datos), pdf_url, total]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/standalone-cotizaciones/upload', upload.single('pdf'), (req, res) => {
+  if (req.file) {
+    res.json({ success: true, url: `uploads/${req.file.filename}` });
+  } else {
+    res.status(400).json({ success: false, message: 'No se subió ningún archivo' });
+  }
+});
+
+app.delete('/api/standalone-cotizaciones/:numero', async (req, res) => {
+  const { numero } = req.params;
+  try {
+    await pool.query('DELETE FROM cotizaciones WHERE numero = $1', [numero]);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

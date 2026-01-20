@@ -65,6 +65,25 @@ export function crearRutasDocumentos(pool) {
     });
 
     // ==========================================
+    // OBTENER TODAS LAS COTIZACIONES (Global)
+    // ==========================================
+    router.get('/documentos/cotizaciones', async (req, res) => {
+        try {
+            const cotizaciones = await DocumentoHelpers.obtenerTodasLasCotizaciones(pool);
+            res.json({ success: true, cotizaciones });
+        } catch (error) {
+            console.error('CRITICAL ERROR obteniendo todas las cotizaciones:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message,
+                detail: error.detail,
+                hint: error.hint,
+                code: error.code
+            });
+        }
+    });
+
+    // ==========================================
     // OBTENER HISTORIAL DE UN SERVICIO
     // ==========================================
     router.get('/servicios/:id/historial', async (req, res) => {
@@ -113,6 +132,62 @@ export function crearRutasDocumentos(pool) {
             res.json({ success: true, cotizacion });
         } catch (error) {
             console.error('Error guardando cotización:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    });
+
+    // ==========================================
+    // ELIMINAR DOCUMENTO
+    // ==========================================
+    router.delete('/servicios/:id/documentos/:numero', async (req, res) => {
+        const { id, numero } = req.params;
+
+        try {
+            await DocumentoHelpers.eliminarDocumento(pool, id, numero);
+
+            // Agregar evento al historial
+            const evento = new EventoHistorial(
+                'documento_eliminado',
+                `Documento #${numero} eliminado`,
+                req.query.usuario || 'Sistema',
+                { numero }
+            );
+            await DocumentoHelpers.agregarEvento(pool, id, evento.toJSON());
+
+            res.json({ success: true, message: 'Documento eliminado' });
+        } catch (error) {
+            console.error('Error eliminando documento:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    });
+
+    // ==========================================
+    // ACTUALIZAR DOCUMENTO
+    // ==========================================
+    router.put('/servicios/:id/documentos/:numero', uploadPDF.single('pdf'), async (req, res) => {
+        const { id, numero } = req.params;
+        const data = JSON.parse(req.body.data || '{}');
+
+        try {
+            // Si hay un nuevo PDF, actualizar la URL
+            if (req.file) {
+                data.pdfUrl = `uploads/documentos/${req.file.filename}`;
+            }
+
+            const documento = await DocumentoHelpers.actualizarDocumento(pool, id, numero, data);
+
+            // Evento al historial
+            const evento = new EventoHistorial(
+                'documento_actualizado',
+                `Documento #${numero} actualizado`,
+                data.actualizadoPor || 'Sistema',
+                { numero }
+            );
+            await DocumentoHelpers.agregarEvento(pool, id, evento.toJSON());
+
+            res.json({ success: true, documento });
+        } catch (error) {
+            console.error('Error actualizando documento:', error);
             res.status(500).json({ success: false, message: error.message });
         }
     });

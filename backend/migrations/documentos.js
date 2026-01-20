@@ -108,6 +108,70 @@ export const DocumentoHelpers = {
         }
 
         return documentos.filter(doc => doc.tipo === tipo);
+    },
+
+    /**
+     * Eliminar un documento específico por número
+     */
+    async eliminarDocumento(pool, servicioId, numero) {
+        const documentos = await this.obtenerDocumentos(pool, servicioId);
+        const filtrados = documentos.filter(doc => doc.numero !== numero);
+
+        if (documentos.length === filtrados.length) {
+            throw new Error(`Documento ${numero} no encontrado en el servicio ${servicioId}`);
+        }
+
+        await pool.query('UPDATE servicios SET documentos = $1 WHERE id = $2', [JSON.stringify(filtrados), servicioId]);
+        return filtrados;
+    },
+
+    /**
+     * Actualizar un documento específico
+     */
+    async actualizarDocumento(pool, servicioId, numero, nuevosDatos) {
+        const documentos = await this.obtenerDocumentos(pool, servicioId);
+        const index = documentos.findIndex(doc => doc.numero === numero);
+
+        if (index === -1) {
+            throw new Error(`Documento ${numero} no encontrado en el servicio ${servicioId}`);
+        }
+
+        documentos[index] = { ...documentos[index], ...nuevosDatos };
+
+        await pool.query('UPDATE servicios SET documentos = $1 WHERE id = $2', [JSON.stringify(documentos), servicioId]);
+        return documentos[index];
+    },
+
+    /**
+     * Obtener todas las cotizaciones de todos los servicios
+     */
+    async obtenerTodasLasCotizaciones(pool) {
+        try {
+            const res = await pool.query(`
+                SELECT 
+                    s.id as servicio_id, 
+                    s.cliente as servicio_cliente,
+                    el.doc as cotizacion
+                FROM servicios s
+                CROSS JOIN LATERAL jsonb_array_elements(
+                    CASE 
+                        WHEN jsonb_typeof(s.documentos) = 'array' THEN s.documentos 
+                        ELSE '[]'::jsonb 
+                    END
+                ) AS el(doc)
+                WHERE el.doc->>'tipo' = 'cotizacion'
+                ORDER BY el.doc->>'fecha' DESC NULLS LAST, el.doc->>'numero' DESC NULLS LAST
+            `);
+
+            return res.rows.map(row => ({
+                ...row.cotizacion,
+                servicioId: row.servicio_id,
+                servicioCliente: row.servicio_cliente
+            }));
+        } catch (error) {
+            console.error('Error en obtenerTodasLasCotizaciones:', error);
+            throw error;
+        }
     }
 };
 
