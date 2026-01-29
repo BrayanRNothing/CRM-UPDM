@@ -11,7 +11,7 @@ import API_URL from '../../config/api';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
@@ -73,7 +73,7 @@ const Login = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
@@ -123,13 +123,13 @@ const Login = () => {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Correo Electrónico</label>
+              <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Usuario</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                placeholder="user@infiniguard.com"
+                placeholder="usuario"
                 required
               />
             </div>

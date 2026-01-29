@@ -95,8 +95,8 @@ function Documentos() {
                     />
                     <BotonMenu
                         gradient="from-orange-500/80 to-orange-600/80 hover:from-orange-600/90 hover:to-orange-700/90"
-                        icon="📚"
-                        titulo="Historial"
+                        icon="📁"
+                        titulo="Archivo de Cotizaciones"
                         badgeText="Consultar"
                         onClick={() => setVistaActual('historial')}
                     />
@@ -115,7 +115,7 @@ function Documentos() {
                 >
                     ← Volver
                 </button>
-                <h1 className="text-3xl font-bold text-gray-800">📚 Historial de Cotizaciones</h1>
+                <h1 className="text-3xl font-bold text-gray-800">Archivo de Cotizaciones</h1>
 
                 {/* Buscador */}
                 <div className="mt-4 relative max-w-md">

@@ -15,6 +15,11 @@ const DistribuidorHome = () => {
   const [showAllEnProceso, setShowAllEnProceso] = useState(false);
   const [showAllTerminadas, setShowAllTerminadas] = useState(false);
 
+  // Estados para Ajustes
+  const [editMode, setEditMode] = useState(false);
+  const [telefono, setTelefono] = useState('');
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     const userGuardado = JSON.parse(sessionStorage.getItem('user'));
     setUsuario(userGuardado);
@@ -40,6 +45,13 @@ const DistribuidorHome = () => {
       window.removeEventListener('changeDistribuidorTab', handleTabChange);
     };
   }, []);
+
+  // Inicializar teléfono cuando se carga el usuario
+  useEffect(() => {
+    if (usuario?.telefono) {
+      setTelefono(usuario.telefono);
+    }
+  }, [usuario]);
 
   const cargarSolicitudes = async (user) => {
     try {
@@ -260,46 +272,124 @@ const DistribuidorHome = () => {
     </div>
   );
 
-  const renderAjustes = () => (
-    <div className="animate-fadeIn">
-      <h2 className="text-3xl font-black text-gray-900 mb-8">Mi Cuenta</h2>
+  const renderAjustes = () => {
+    const handleSavePhone = async () => {
+      setSaving(true);
+      try {
+        const res = await fetch(`${API_URL}/api/usuarios/${usuario.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: usuario.nombre,
+            email: usuario.email,
+            rol: usuario.rol,
+            telefono: telefono
+          })
+        });
 
-      <div className="space-y-6">
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
-              {usuario?.nombre?.charAt(0)}
+        if (res.ok) {
+          toast.success('✅ Teléfono actualizado');
+          // Actualizar sessionStorage
+          const updatedUser = { ...usuario, telefono };
+          sessionStorage.setItem('user', JSON.stringify(updatedUser));
+          setUsuario(updatedUser);
+          setEditMode(false);
+        } else {
+          toast.error('Error al actualizar');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Error de conexión');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <div className="animate-fadeIn">
+        <h2 className="text-3xl font-black text-gray-900 mb-8">Mi Cuenta</h2>
+
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
+                {usuario?.nombre?.charAt(0)}
+              </div>
+              <div>
+                <h3 className="text-xl font-extrabold text-gray-900">{usuario?.nombre}</h3>
+                <p className="text-blue-600 font-bold text-sm tracking-widest uppercase">{usuario?.rol}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-extrabold text-gray-900">{usuario?.nombre}</h3>
-              <p className="text-blue-600 font-bold text-sm tracking-widest uppercase">{usuario?.rol}</p>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                <span className="text-gray-500 font-medium text-sm">Email:</span>
+                <span className="font-bold text-gray-900">{usuario?.email || usuario?.usuario}</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                <span className="text-gray-500 font-medium text-sm">Teléfono:</span>
+                {editMode ? (
+                  <input
+                    type="tel"
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
+                    placeholder="Opcional"
+                    className="font-bold text-gray-900 bg-white px-3 py-1 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500"
+                  />
+                ) : (
+                  <span className="font-bold text-gray-900">{telefono || 'No especificado'}</span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                <span className="text-gray-500 font-medium text-sm">ID Socio:</span>
+                <span className="font-bold text-gray-900">#{usuario?.id || '001'}</span>
+              </div>
             </div>
+
+            {editMode ? (
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleSavePhone}
+                  disabled={saving}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl transition-all disabled:opacity-50"
+                >
+                  {saving ? 'Guardando...' : '💾 Guardar'}
+                </button>
+                <button
+                  onClick={() => {
+                    setTelefono(usuario?.telefono || '');
+                    setEditMode(false);
+                  }}
+                  className="px-6 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-2xl transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditMode(true)}
+                className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-3 rounded-2xl transition-all mt-6 border-2 border-blue-200"
+              >
+                ✏️ Editar Teléfono
+              </button>
+            )}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-              <span className="text-gray-500 font-medium text-sm">Email:</span>
-              <span className="font-bold text-gray-900">{usuario?.email || usuario?.usuario}</span>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-              <span className="text-gray-500 font-medium text-sm">ID Socio:</span>
-              <span className="font-bold text-gray-900">#{usuario?.id || '001'}</span>
-            </div>
-          </div>
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              window.location.href = '/';
+            }}
+            className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-black py-5 rounded-3xl transition-all border-2 border-red-200"
+          >
+            🚪 Cerrar Sesión Segura
+          </button>
         </div>
-
-        <button
-          onClick={() => {
-            sessionStorage.clear();
-            window.location.href = '/';
-          }}
-          className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-black py-5 rounded-3xl transition-all border-2 border-red-200"
-        >
-          🚪 Cerrar Sesión Segura
-        </button>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (detalleSeleccionado) {
     return (

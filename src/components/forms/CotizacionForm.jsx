@@ -14,7 +14,8 @@ function CotizacionForm({ titulo, tipoServicio, onSuccess }) {
     cantidad: 1,
     direccion: '',
     descripcion: '',
-    clienteFinal: '' // Nuevo campo para distribuidores
+    clienteFinal: '', // Nuevo campo para distribuidores
+    telefono: JSON.parse(sessionStorage.getItem('user') || '{}')?.telefono || ''
   });
 
   const handleChange = (e) => setFormDatos({ ...formDatos, [e.target.name]: e.target.value });
@@ -50,7 +51,7 @@ function CotizacionForm({ titulo, tipoServicio, onSuccess }) {
     formData.append('descripcion', formDatos.descripcion);
     formData.append('cantidad', formDatos.cantidad);
     formData.append('direccion', formDatos.direccion);
-    formData.append('telefono', usuario ? usuario.telefono || '' : '');
+    formData.append('telefono', formDatos.telefono);
 
     // Si es distribuidor, usamos el clienteFinal. Si no, el nombre del usuario logueado.
     const esDistribuidor = usuario?.rol === 'distribuidor';
@@ -75,7 +76,7 @@ function CotizacionForm({ titulo, tipoServicio, onSuccess }) {
       if (response.ok) {
         setMensaje({ texto: '¡Solicitud enviada con éxito! ✅', tipo: 'success' });
         // Resetear formulario
-        setFormDatos({ nombreProyecto: '', modelo: '', cantidad: 1, direccion: '', descripcion: '' });
+        setFormDatos({ nombreProyecto: '', modelo: '', cantidad: 1, direccion: '', descripcion: '', clienteFinal: '', telefono: usuario?.telefono || '' });
         setFileImages([]);
         setFilePdf(null);
         setTimeout(() => {
@@ -119,16 +120,29 @@ function CotizacionForm({ titulo, tipoServicio, onSuccess }) {
         )}
 
         {/* Nombre del proyecto */}
-        <div>
-          <input
-            required
-            type="text"
-            name="nombreProyecto"
-            value={formDatos.nombreProyecto}
-            onChange={handleChange}
-            placeholder="Nombre proyecto"
-            className="w-full bg-gray-100 border-0 p-4 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="md:col-span-2">
+            <input
+              required
+              type="text"
+              name="nombreProyecto"
+              value={formDatos.nombreProyecto}
+              onChange={handleChange}
+              placeholder="Nombre proyecto"
+              className="w-full bg-gray-100 border-0 p-4 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            />
+          </div>
+          <div>
+            <input
+              required
+              type="tel"
+              name="telefono"
+              value={formDatos.telefono}
+              onChange={handleChange}
+              placeholder="Teléfono"
+              className="w-full bg-gray-100 border-0 p-4 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            />
+          </div>
         </div>
 
         {/* Descripción */}

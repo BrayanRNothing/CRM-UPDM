@@ -55,17 +55,44 @@ function ModalUsuario({ modoEdicion, formData, setFormData, handleSubmit, cerrar
               required
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Email *</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Usuario *</label>
+            <input
+              type="text"
+              value={formData.username}
+              onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none transition"
+              placeholder="usuario123"
+              required
+              disabled={modoEdicion}
+            />
+            {modoEdicion && <p className="text-xs text-gray-400 mt-1">El usuario no se puede modificar</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Email (Opcional)</label>
             <input
               type="email"
               value={formData.email}
               onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none transition"
-              placeholder="usuario@infiniguard.com"
-              required
+              placeholder="correo@ejemplo.com"
+            />
+            <p className="text-xs text-gray-400 mt-1">Solo para recibir notificaciones</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Teléfono (Opcional)</label>
+            <input
+              type="tel"
+              value={formData.telefono}
+              onChange={(e) => setFormData((prev) => ({ ...prev, telefono: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none transition"
+              placeholder="+52 123 456 7890"
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Contraseña {modoEdicion && '(dejar vacío para no cambiar)'}
@@ -79,6 +106,7 @@ function ModalUsuario({ modoEdicion, formData, setFormData, handleSubmit, cerrar
               required={!modoEdicion}
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Rol *</label>
             <select
@@ -149,8 +177,10 @@ function Usuarios() {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState(null);
   const [formData, setFormData] = useState({
+    username: '',
     nombre: '',
     email: '',
+    telefono: '',
     password: '',
     rol: 'usuario'
   });
@@ -177,7 +207,7 @@ function Usuarios() {
   };
 
   const abrirModal = (rol) => {
-    setFormData({ nombre: '', email: '', password: '', rol });
+    setFormData({ username: '', nombre: '', email: '', telefono: '', password: '', rol });
     setModoEdicion(false);
     setUsuarioEditando(null);
     setModalAbierto(true);
@@ -185,8 +215,10 @@ function Usuarios() {
 
   const abrirModalEditar = (usuario) => {
     setFormData({
+      username: usuario.username || '',
       nombre: usuario.nombre,
-      email: usuario.email,
+      email: usuario.email || '',
+      telefono: usuario.telefono || '',
       password: '',
       rol: usuario.rol
     });
@@ -197,7 +229,7 @@ function Usuarios() {
 
   const cerrarModal = () => {
     setModalAbierto(false);
-    setFormData({ nombre: '', email: '', password: '', rol: 'usuario' });
+    setFormData({ username: '', nombre: '', email: '', telefono: '', password: '', rol: 'usuario' });
     setModoEdicion(false);
     setUsuarioEditando(null);
   };
@@ -205,8 +237,8 @@ function Usuarios() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.nombre || !formData.email || (!modoEdicion && !formData.password)) {
-      toast.error('Completa todos los campos obligatorios');
+    if (!formData.username || !formData.password && !modoEdicion) {
+      toast.error('Usuario y contraseña son requeridos');
       return;
     }
 
@@ -286,8 +318,13 @@ function Usuarios() {
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-lg text-gray-800 truncate">{user.nombre}</h3>
           <p className="text-sm text-gray-600 truncate flex items-center gap-1">
-            <span>📧</span> {user.email}
+            <span>👤</span> @{user.username}
           </p>
+          {user.email && (
+            <p className="text-xs text-gray-500 truncate flex items-center gap-1 mt-1">
+              <span>📧</span> {user.email}
+            </p>
+          )}
           <div className={`bg-${color}-200 text-${color}-800 px-3 py-1 rounded-full text-xs font-bold inline-block mt-2 uppercase`}>
             {user.rol === 'admin' && '👑 '}{user.rol === 'tecnico' && '🔧 '}{user.rol === 'distribuidor' && '📦 '}{user.rol === 'usuario' && '👤 '}
             {user.rol}
@@ -300,6 +337,12 @@ function Usuarios() {
           <span className="font-semibold">🆔 ID:</span>
           <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{user.id}</span>
         </p>
+        {user.telefono && (
+          <p className="text-xs text-gray-600 flex items-center gap-2">
+            <span className="font-semibold">📱 Teléfono:</span>
+            <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{user.telefono}</span>
+          </p>
+        )}
         <p className="text-xs text-gray-600 flex items-center gap-2">
           <span className="font-semibold">🔑 Contraseña:</span>
           <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{'•'.repeat(user.password?.length || 8)}</span>
@@ -378,7 +421,7 @@ function Usuarios() {
       <>
         <div className="max-w-7xl mx-auto animate-fadeInUp pb-12 w-full h-screen overflow-auto">
           <button onClick={() => setVistaActual('menu')} className="mb-6 text-gray-600 hover:text-gray-700 font-semibold flex items-center gap-2 transition-colors">← Volver al menú</button>
-          <div className="mb-0 flex justify-between items-center flex-wrap gap-4">
+          <div className="mb-0 flex justify-between items-center flex-wrap gap-4 pb-4">
             <div>
               <p className="text-gray-500 dark:text-gray-400 text-sm">{admins.length} usuarios con control total</p>
             </div>
@@ -410,7 +453,7 @@ function Usuarios() {
       <>
         <div className="max-w-7xl mx-auto animate-fadeInUp pb-12 w-full h-screen overflow-auto">
           <button onClick={() => setVistaActual('menu')} className="mb-6 text-gray-600 hover:text-gray-700 font-semibold flex items-center gap-2 transition-colors">← Volver al menú</button>
-          <div className="mb-0 flex justify-between items-center flex-wrap gap-4">
+          <div className="mb-0 flex justify-between items-center flex-wrap gap-4 pb-4">
             <div>
               <p className="text-gray-500 dark:text-gray-400 text-sm">{tecnicos.length} especialistas asignados</p>
             </div>
@@ -442,7 +485,7 @@ function Usuarios() {
       <>
         <div className="max-w-7xl mx-auto animate-fadeInUp pb-12 w-full h-screen overflow-auto">
           <button onClick={() => setVistaActual('menu')} className="mb-6 text-gray-600 hover:text-gray-700 font-semibold flex items-center gap-2 transition-colors">← Volver al menú</button>
-          <div className="mb-0 flex justify-between items-center flex-wrap gap-4">
+          <div className="mb-0 flex justify-between items-center flex-wrap gap-4 pb-4">
             <div>
               <p className="text-gray-500 dark:text-gray-400 text-sm">{distribuidores.length} socios de distribución</p>
             </div>
@@ -474,7 +517,7 @@ function Usuarios() {
       <>
         <div className="max-w-7xl mx-auto animate-fadeInUp pb-12 w-full h-screen overflow-auto">
           <button onClick={() => setVistaActual('menu')} className="mb-6 text-gray-600 hover:text-gray-700 font-semibold flex items-center gap-2 transition-colors">← Volver al menú</button>
-          <div className="mb-0 flex justify-between items-center flex-wrap gap-4">
+          <div className="mb-0 flex justify-between items-center flex-wrap gap-4 pb-4">
             <div>
               <p className="text-gray-500 dark:text-gray-400 text-sm">{usuariosFinales.length} usuarios registrados</p>
             </div>

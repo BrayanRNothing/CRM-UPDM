@@ -181,7 +181,7 @@ const AdminDashboard = () => {
               className="p-4 bg-linear-to-br from-orange-50 to-orange-100 rounded-lg hover:from-orange-100 hover:to-orange-200 transition text-center"
             >
               <div className="text-3xl mb-2">💬</div>
-              <p className="text-sm font-semibold text-gray-700">Cotizaciones</p>
+              <p className="text-sm font-semibold text-gray-700">Solicitudes</p>
             </Link>
             <Link
               to="/admin/servicios"

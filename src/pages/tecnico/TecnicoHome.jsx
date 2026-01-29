@@ -23,6 +23,10 @@ const TecnicoHome = () => {
   const [servicioSeleccionado, setServicioSeleccionado] = useState(null);
   // Servicio a finalizar
   const [servicioAFinalizar, setServicioAFinalizar] = useState(null);
+  // Estados para Ajustes
+  const [editMode, setEditMode] = useState(false);
+  const [telefono, setTelefono] = useState('');
+  const [saving, setSaving] = useState(false);
 
 
   // 1. Cargar datos al iniciar o refrescar
@@ -78,6 +82,13 @@ const TecnicoHome = () => {
     }, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Inicializar teléfono cuando se carga el usuario
+  useEffect(() => {
+    if (usuario?.telefono) {
+      setTelefono(usuario.telefono);
+    }
+  }, [usuario]);
 
 
   // 3. Marcar una tarea como finalizada (PUT al backend)
@@ -253,6 +264,106 @@ const TecnicoHome = () => {
         </div>
       );
     }
+
+    // --- PESTAÑA 4: AJUSTES ---
+    if (activeTab === 'ajustes') {
+      const handleSavePhone = async () => {
+        setSaving(true);
+        try {
+          const res = await fetch(`${API_URL}/api/usuarios/${usuario.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nombre: usuario.nombre,
+              email: usuario.email,
+              rol: usuario.rol,
+              telefono: telefono
+            })
+          });
+
+          if (res.ok) {
+            toast.success('✅ Teléfono actualizado');
+            const updatedUser = { ...usuario, telefono };
+            sessionStorage.setItem('user', JSON.stringify(updatedUser));
+            setUsuario(updatedUser);
+            setEditMode(false);
+          } else {
+            toast.error('Error al actualizar');
+          }
+        } catch (error) {
+          console.error(error);
+          toast.error('Error de conexión');
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <div className="pb-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Mi Perfil</h2>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-gray-600 text-sm font-medium">Email:</span>
+                <span className="font-bold text-gray-900">{usuario?.email}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-gray-600 text-sm font-medium">Teléfono:</span>
+                {editMode ? (
+                  <input
+                    type="tel"
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
+                    placeholder="Opcional"
+                    className="font-bold text-gray-900 bg-white px-3 py-1 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500"
+                  />
+                ) : (
+                  <span className="font-bold text-gray-900">{telefono || 'No especificado'}</span>
+                )}
+              </div>
+            </div>
+
+            {editMode ? (
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={handleSavePhone}
+                  disabled={saving}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50"
+                >
+                  {saving ? 'Guardando...' : '💾 Guardar'}
+                </button>
+                <button
+                  onClick={() => {
+                    setTelefono(usuario?.telefono || '');
+                    setEditMode(false);
+                  }}
+                  className="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditMode(true)}
+                className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-2.5 rounded-xl transition-all mt-4 border-2 border-blue-200"
+              >
+                ✏️ Editar Teléfono
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              window.location.href = '/';
+            }}
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-2xl transition-all shadow-md active:scale-95"
+          >
+            🚪 Cerrar Sesión
+          </button>
+        </div>
+      );
+    }
   };
 
 
@@ -284,6 +395,12 @@ const TecnicoHome = () => {
           className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'solicitudes' ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}
         >
           Mis Pedidos
+        </button>
+        <button
+          onClick={() => setActiveTab('ajustes')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'ajustes' ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}
+        >
+          Ajustes
         </button>
       </div>
 

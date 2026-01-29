@@ -16,6 +16,16 @@ const ClienteHome = () => {
   const [showAllEnProceso, setShowAllEnProceso] = useState(false);
   const [showAllTerminadas, setShowAllTerminadas] = useState(false);
 
+  // Estados para Ajustes
+  const [editMode, setEditMode] = useState(false);
+  const [telefono, setTelefono] = useState('');
+  const [emailNotificaciones, setEmailNotificaciones] = useState('');
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     const userGuardado = JSON.parse(sessionStorage.getItem('user'));
     setUsuario(userGuardado);
@@ -41,6 +51,14 @@ const ClienteHome = () => {
       window.removeEventListener('changeClienteTab', handleTabChange);
     };
   }, []);
+
+  // Inicializar valores de ajustes cuando se carga el usuario
+  useEffect(() => {
+    if (usuario) {
+      setTelefono(usuario.telefono || '');
+      setEmailNotificaciones(usuario.email || '');
+    }
+  }, [usuario]);
 
   const cargarSolicitudes = async (user) => {
     try {
@@ -256,18 +274,20 @@ const ClienteHome = () => {
       </div>
 
       {!tipoServicio ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Aplicación de Recubrimiento */}
           <button
             onClick={() => setTipoServicio('Aplicación de Recubrimiento')}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98 flex flex-col h-full"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-4 flex-1">
               <div className="text-5xl">🏗️</div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold mb-1">Aplicación de Recubrimiento</h3>
                 <p className="text-blue-100 text-sm">Instalación de sistemas de protección y recubrimiento</p>
               </div>
+            </div>
+            <div className="flex justify-end">
               <svg className="w-6 h-6 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -277,14 +297,16 @@ const ClienteHome = () => {
           {/* Mantenimiento */}
           <button
             onClick={() => setTipoServicio('Mantenimiento')}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98 flex flex-col h-full"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-4 flex-1">
               <div className="text-5xl">🔧</div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold mb-1">Mantenimiento</h3>
-                <p className="text-orange-100 text-sm">Mantenimiento preventivo y correctivo de sistemas</p>
+                <p className="text-blue-100 text-sm">Mantenimiento preventivo y correctivo de sistemas</p>
               </div>
+            </div>
+            <div className="flex justify-end">
               <svg className="w-6 h-6 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -294,14 +316,16 @@ const ClienteHome = () => {
           {/* Garantía Extendida */}
           <button
             onClick={() => setTipoServicio('Garantía Extendida')}
-            className="w-full bg-purple-500 hover:bg-purple-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all group text-left active:scale-98 flex flex-col h-full"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-4 flex-1">
               <div className="text-5xl">🛡️</div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold mb-1">Garantía Extendida</h3>
-                <p className="text-purple-100 text-sm">Extensión de cobertura y protección adicional</p>
+                <p className="text-blue-100 text-sm">Extensión de cobertura y protección adicional</p>
               </div>
+            </div>
+            <div className="flex justify-end">
               <svg className="w-6 h-6 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -331,40 +355,261 @@ const ClienteHome = () => {
   );
 
   // Vista AJUSTES
-  const renderAjustes = () => (
-    <div className="pb-4">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Ajustes</h2>
-      <div className="space-y-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-3">Información del Perfil</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-500">Nombre:</span>
-              <span className="font-semibold text-gray-900">{usuario?.nombre}</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-500">Usuario:</span>
-              <span className="font-semibold text-gray-900">{usuario?.usuario}</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-gray-500">Rol:</span>
-              <span className="font-semibold text-gray-900 capitalize">{usuario?.rol}</span>
-            </div>
-          </div>
-        </div>
+  const renderAjustes = () => {
+    const handleSaveProfile = async () => {
+      setSaving(true);
+      try {
+        const response = await fetch(`${API_URL}/api/usuarios/${usuario.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            nombre: usuario.nombre,
+            email: emailNotificaciones || null,
+            rol: usuario.rol,
+            telefono: telefono || null
+          }),
+        });
 
-        <button
-          onClick={() => {
-            sessionStorage.clear();
-            window.location.href = '/';
-          }}
-          className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-2xl transition-all shadow-md active:scale-95"
-        >
-          🚪 Cerrar Sesión
-        </button>
+        if (response.ok) {
+          const updatedUser = { ...usuario, telefono, email: emailNotificaciones };
+          sessionStorage.setItem('user', JSON.stringify(updatedUser));
+          setUsuario(updatedUser);
+          toast.success('✅ Perfil actualizado');
+          setEditMode(false);
+        } else {
+          toast.error('Error al actualizar perfil');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        toast.error('Error de conexión');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const handleChangePassword = async () => {
+      if (newPassword !== confirmNewPassword) {
+        toast.error('Las contraseñas no coinciden');
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        toast.error('La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+
+      setSaving(true);
+      try {
+        const response = await fetch(`${API_URL}/api/usuarios/${usuario.id}/cambiar-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            currentPassword,
+            newPassword,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          toast.success('✅ Contraseña actualizada');
+          setShowPasswordChange(false);
+          setCurrentPassword('');
+          setNewPassword('');
+          setConfirmNewPassword('');
+        } else {
+          toast.error(data.message || 'Error al cambiar contraseña');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        toast.error('Error de conexión');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <div className="pb-4">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Ajustes</h2>
+        <div className="space-y-4">
+          {/* Información del Perfil */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900">Información del Perfil</h3>
+              {!editMode && (
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="text-blue-600 text-sm font-semibold hover:text-blue-700"
+                >
+                  ✏️ Editar
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="py-2 border-b border-gray-100">
+                <span className="text-gray-500 block mb-1">Nombre:</span>
+                <span className="font-semibold text-gray-900">{usuario?.nombre}</span>
+              </div>
+
+              <div className="py-2 border-b border-gray-100">
+                <span className="text-gray-500 block mb-1">Usuario:</span>
+                <span className="font-semibold text-blue-600">@{usuario?.username || 'usuario'}</span>
+              </div>
+
+              <div className="py-2 border-b border-gray-100">
+                <span className="text-gray-500 block mb-1">Teléfono:</span>
+                {editMode ? (
+                  <input
+                    type="tel"
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="123 456 7890"
+                  />
+                ) : (
+                  <span className="font-semibold text-gray-900">
+                    {usuario?.telefono || 'No especificado'}
+                  </span>
+                )}
+              </div>
+
+              <div className="py-2">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-gray-500 block">Email para Notificaciones:</span>
+                  {!editMode && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${usuario?.email ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {usuario?.email ? 'Activado' : 'Desactivado'}
+                    </span>
+                  )}
+                </div>
+
+                {editMode ? (
+                  <input
+                    type="email"
+                    value={emailNotificaciones}
+                    onChange={(e) => setEmailNotificaciones(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="notificaciones@email.com"
+                  />
+                ) : (
+                  <span className="font-semibold text-gray-900">
+                    {usuario?.email || 'No configurado'}
+                  </span>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  Recibirás actualizaciones de tus servicios aquí
+                </p>
+              </div>
+            </div>
+
+            {editMode && (
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50"
+                >
+                  {saving ? 'Guardando...' : '💾 Guardar Cambios'}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditMode(false);
+                    setTelefono(usuario?.telefono || '');
+                    setEmailNotificaciones(usuario?.email || '');
+                  }}
+                  className="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Cambiar Contraseña */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-gray-900 mb-3">Seguridad</h3>
+
+            {!showPasswordChange ? (
+              <button
+                onClick={() => setShowPasswordChange(true)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-xl transition-all"
+              >
+                🔒 Cambiar Contraseña
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Contraseña Actual</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Nueva Contraseña</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Confirmar Nueva Contraseña</label>
+                  <input
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={saving}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50"
+                  >
+                    {saving ? 'Cambiando...' : '✓ Cambiar'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPasswordChange(false);
+                      setCurrentPassword('');
+                      setNewPassword('');
+                      setConfirmNewPassword('');
+                    }}
+                    className="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              window.location.href = '/';
+            }}
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-2xl transition-all shadow-md active:scale-95"
+          >
+            🚪 Cerrar Sesión
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
 
   // Si hay detalle seleccionado, mostrar solo el detalle

@@ -10,6 +10,7 @@ import { migrarDocumentos } from './migrations/documentos.js';
 import crearRutasDocumentos from './routes/documentos.js';
 import crearRutasPNC from './routes/pnc.js';
 import crearRutasDAE from './routes/dae.js';
+import { enviarEmailBienvenida, notificarNuevaCotizacion, notificarCambioEstado } from './services/emailService.js';
 
 
 
@@ -113,6 +114,55 @@ const initDB = async () => {
     await addColumn('servicios', 'fechaProgramada', 'TEXT');
     await addColumn('servicios', 'porcentajeComision', 'REAL', '0');
 
+    // Migración: Agregar teléfono a usuarios
+    await addColumn('usuarios', 'telefono', 'TEXT');
+
+    // Migración: Agregar username y hacer email opcional
+    await addColumn('usuarios', 'username', 'TEXT');
+
+    // Hacer email nullable (remover constraint NOT NULL)
+    try {
+      await pool.query('ALTER TABLE usuarios ALTER COLUMN email DROP NOT NULL');
+    } catch (e) {
+      console.log('Email ya es nullable o error:', e.message);
+    }
+
+    // Migración de usuarios existentes: mantener solo angel y alejandro
+    try {
+      // Primero, asignar usernames a angel y alejandro si no los tienen
+      const usuarios = await pool.query('SELECT id, email, nombre FROM usuarios');
+
+      for (const user of usuarios.rows) {
+        if (!user.username) {
+          let username = user.nombre?.toLowerCase().replace(/\s+/g, '_') || 'usuario';
+          // Si el nombre es "Administrador", usar "admin"
+          if (user.nombre === 'Administrador' || user.email === 'admin@infiniguard.com') {
+            username = 'admin';
+          }
+
+          await pool.query('UPDATE usuarios SET username = $1 WHERE id = $2', [username, user.id]);
+        }
+      }
+
+      // Borrar usuarios que NO sean angel, alejandro o admin
+      await pool.query(`
+        DELETE FROM usuarios 
+        WHERE LOWER(nombre) NOT IN ('angel', 'alejandro', 'administrador')
+        AND LOWER(username) NOT IN ('angel', 'alejandro', 'admin')
+      `);
+
+      console.log('✅ Usuarios migrados: solo angel, alejandro y admin');
+    } catch (e) {
+      console.log('Error en migración de usuarios:', e.message);
+    }
+
+    // Hacer username UNIQUE después de la migración
+    try {
+      await pool.query('ALTER TABLE usuarios ADD CONSTRAINT usuarios_username_unique UNIQUE (username)');
+    } catch (e) {
+      console.log('Constraint de username ya existe o error:', e.message);
+    }
+
     // Migrar datos existentes de 'tecnico' a 'tecnicoAsignado'
     try {
       await pool.query(`
@@ -127,12 +177,12 @@ const initDB = async () => {
     const { rowCount } = await pool.query('SELECT id FROM usuarios LIMIT 1');
     if (rowCount === 0) {
       await pool.query(
-        'INSERT INTO usuarios (email, password, rol, nombre) VALUES ($1, $2, $3, $4)',
-        ['admin@infiniguard.com', '123', 'admin', 'Administrador']
+        'INSERT INTO usuarios (username, email, password, rol, nombre) VALUES ($1, $2, $3, $4, $5)',
+        ['admin', 'admin@infiniguard.com', '123', 'admin', 'Administrador']
       );
 
       console.log('✅ Usuario administrador creado:');
-      console.log('   Email: admin@infiniguard.com');
+      console.log('   Usuario: admin');
       console.log('   Password: 123');
     }
 
@@ -261,12 +311,12 @@ app.use('/api/dae', crearRutasDAE(pool));
 // --- RUTAS ---
 
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
   try {
-    const result = await pool.query('SELECT * FROM usuarios WHERE email = $1 AND password = $2', [email, password]);
+    const result = await pool.query('SELECT * FROM usuarios WHERE username = $1 AND password = $2', [username, password]);
     const user = result.rows[0];
     if (user) res.json({ success: true, user });
-    else res.status(401).json({ success: false, message: 'Error de credenciales' });
+    else res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -341,6 +391,21 @@ app.post('/api/servicios', upload.fields([{ name: 'foto', maxCount: 1 }, { name:
       new Date().toISOString().split('T')[0], null, null
     ]);
 
+    // Notificar a admins sobre nueva cotización (no bloqueante)
+    const admins = await pool.query('SELECT email FROM usuarios WHERE rol = $1', ['admin']);
+    const cotizacion = {
+      id: result.rows[0].id,
+      titulo: data.titulo,
+      cliente: data.cliente,
+      usuario: data.usuario,
+      tipoServicio: data.tipo,
+      descripcion: data.descripcion,
+      fecha: new Date().toISOString()
+    };
+    admins.rows.forEach(admin => {
+      notificarNuevaCotizacion(admin.email, cotizacion).catch(err => console.error('Error enviando email:', err));
+    });
+
     res.json({ success: true, id: result.rows[0].id });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -350,6 +415,7 @@ app.post('/api/servicios', upload.fields([{ name: 'foto', maxCount: 1 }, { name:
 app.put('/api/servicios/:id', upload.single('archivo'), async (req, res) => {
   const { id } = req.params;
   const update = req.body;
+  let estadoCambiado = false;
 
   try {
     if (req.file) {
@@ -359,6 +425,7 @@ app.put('/api/servicios/:id', upload.single('archivo'), async (req, res) => {
 
     if (update.estado) {
       await pool.query('UPDATE servicios SET estado = $1 WHERE id = $2', [update.estado, id]);
+      estadoCambiado = true;
     }
 
     if (update.estadoCliente) {
@@ -411,6 +478,17 @@ app.put('/api/servicios/:id', upload.single('archivo'), async (req, res) => {
       await pool.query('UPDATE servicios SET porcentajeComision = $1 WHERE id = $2', [update.porcentajeComision, id]);
     }
 
+    // Si cambió el estado, notificar al cliente
+    if (estadoCambiado) {
+      const servicio = await pool.query('SELECT * FROM servicios WHERE id = $1', [id]);
+      if (servicio.rows[0]) {
+        const usuario = await pool.query('SELECT email FROM usuarios WHERE nombre = $1', [servicio.rows[0].usuario || servicio.rows[0].cliente]);
+        if (usuario.rows[0]) {
+          notificarCambioEstado(usuario.rows[0].email, servicio.rows[0]).catch(err => console.error('Error enviando email:', err));
+        }
+      }
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error en PUT:', error);
@@ -419,17 +497,23 @@ app.put('/api/servicios/:id', upload.single('archivo'), async (req, res) => {
 });
 
 app.post('/api/register', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ success: false, message: 'Faltan datos' });
+  const { username, email, password, nombre, telefono } = req.body;
+  if (!username || !password) return res.status(400).json({ success: false, message: 'Usuario y contraseña son requeridos' });
 
   try {
-    const exists = await pool.query('SELECT 1 FROM usuarios WHERE email = $1', [email]);
-    if (exists.rowCount > 0) return res.status(409).json({ success: false, message: 'El email ya está registrado' });
+    const exists = await pool.query('SELECT 1 FROM usuarios WHERE username = $1', [username]);
+    if (exists.rowCount > 0) return res.status(409).json({ success: false, message: 'El nombre de usuario ya está en uso' });
 
     const result = await pool.query(
-      'INSERT INTO usuarios (email, password, rol, nombre) VALUES ($1, $2, $3, $4) RETURNING *',
-      [email, password, 'usuario', email.split('@')[0]]
+      'INSERT INTO usuarios (username, email, password, rol, nombre, telefono) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [username, email || null, password, 'usuario', nombre || username, telefono || null]
     );
+
+    // Enviar email de bienvenida solo si tiene email (no bloqueante)
+    if (email) {
+      enviarEmailBienvenida(result.rows[0]).catch(err => console.error('Error enviando email:', err));
+    }
+
     res.json({ success: true, user: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -437,11 +521,11 @@ app.post('/api/register', async (req, res) => {
 });
 
 app.post('/api/usuarios', async (req, res) => {
-  const { nombre, email, password, rol } = req.body;
+  const { username, nombre, email, password, rol, telefono } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO usuarios (nombre, email, password, rol) VALUES ($1, $2, $3, $4) RETURNING id',
-      [nombre, email, password, rol]
+      'INSERT INTO usuarios (username, nombre, email, password, rol, telefono) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [username, nombre, email || null, password, rol, telefono || null]
     );
     res.json({ success: true, id: result.rows[0].id });
   } catch (error) {
@@ -451,17 +535,17 @@ app.post('/api/usuarios', async (req, res) => {
 
 app.put('/api/usuarios/:id', async (req, res) => {
   const { id } = req.params;
-  const { nombre, email, password, rol } = req.body;
+  const { nombre, email, password, rol, telefono } = req.body;
   try {
     if (password) {
       await pool.query(
-        'UPDATE usuarios SET nombre = $1, email = $2, password = $3, rol = $4 WHERE id = $5',
-        [nombre, email, password, rol, id]
+        'UPDATE usuarios SET nombre = $1, email = $2, password = $3, rol = $4, telefono = $5 WHERE id = $6',
+        [nombre, email || null, password, rol, telefono || null, id]
       );
     } else {
       await pool.query(
-        'UPDATE usuarios SET nombre = $1, email = $2, rol = $3 WHERE id = $4',
-        [nombre, email, rol, id]
+        'UPDATE usuarios SET nombre = $1, email = $2, rol = $3, telefono = $4 WHERE id = $5',
+        [nombre, email || null, rol, telefono || null, id]
       );
     }
     res.json({ success: true });

@@ -58,7 +58,7 @@ const AdminLayout = () => {
       )
     },
     {
-      name: 'Cotizaciones',
+      name: 'Solicitudes',
       path: '/admin/cotizaciones',
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -86,20 +86,22 @@ const AdminLayout = () => {
       )
     },
     {
-      name: 'Usuarios',
-      path: '/admin/usuarios',
+      name: 'Documentos',
+      path: '/admin/documentos',
+      gap: true, // Grupo de recursos
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+          <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clipRule="evenodd" />
         </svg>
       )
     },
     {
-      name: 'Documentos',
-      path: '/admin/documentos',
+      name: 'Usuarios',
+      path: '/admin/usuarios',
+      gap: true, // Grupo de admin
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clipRule="evenodd" />
+          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
         </svg>
       )
     },
@@ -136,11 +138,11 @@ const AdminLayout = () => {
           {/* Perfil del Usuario */}
           {usuario && (
             <div className="px-4 py-3 mb-2">
-              <div className="bg-blue-500 bg-opacity-20 backdrop-blur-sm border border-blue-400 border-opacity-30 rounded-lg p-3 flex items-center gap-3">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-3 flex items-center gap-3 shadow-lg">
                 <Avatar name={usuario.nombre} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-semibold text-sm truncate">{usuario.nombre}</p>
-                  <p className="text-blue-200 text-xs truncate">{usuario.email}</p>
+                  <p className="text-blue-200 text-xs truncate">{usuario.username ? `@${usuario.username}` : usuario.email}</p>
                 </div>
               </div>
             </div>
@@ -150,12 +152,12 @@ const AdminLayout = () => {
           <nav className="flex-1 overflow-y-auto py-4">
             <ul className="space-y-1 px-2">
               {menuItems.map((item) => (
-                <li key={item.name}>
+                <li key={item.name} className={item.gap ? 'mt-2 pt-2 border-t border-white/10' : ''}>
                   <Link
                     to={item.path}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${location.pathname === item.path
-                      ? 'bg-blue-500 bg-opacity-30 text-white font-semibold shadow-lg shadow-blue-500/20 backdrop-blur-sm border border-blue-400 border-opacity-20'
-                      : 'text-blue-100 hover:bg-blue-500 hover:bg-opacity-20 hover:text-white'
+                      ? 'bg-white/10 backdrop-blur-md text-white font-semibold shadow-lg shadow-blue-500/30 border border-white/20'
+                      : 'text-blue-100 hover:bg-white/5 hover:backdrop-blur-sm hover:text-white'
                       }`}
                   >
                     {item.icon}
@@ -166,21 +168,6 @@ const AdminLayout = () => {
             </ul>
           </nav>
 
-          {/* Botón Salir */}
-          <div className="p-4">
-            <button
-              onClick={() => {
-                logout();
-                window.location.href = '/';
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-95"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-              </svg>
-              Cerrar Sesión
-            </button>
-          </div>
         </div>
       </aside>
 

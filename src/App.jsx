@@ -8,6 +8,8 @@ import TecnicoLayout from './layouts/TecnicoLayout.jsx';
 import DistribuidorLayout from './layouts/DistribuidorLayout.jsx';
 import ClienteLayout from './layouts/ClienteLayout.jsx';
 
+// Components
+import SkeletonLoader from './components/ui/SkeletonLoader.jsx';
 
 // Páginas
 import React, { Suspense, lazy } from 'react';
@@ -91,7 +93,13 @@ function App() {
           },
         }}
       />
-      <Suspense fallback={<div className="flex items-center justify-center h-screen text-blue-600 font-bold text-xl">Cargando página...</div>}>
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-screen p-8">
+          <div className="w-full max-w-4xl">
+            <SkeletonLoader variant="dashboard" />
+          </div>
+        </div>
+      }>
         <Routes>
           {/* RUTA PÚBLICA (El Login es la raíz "/") */}
           <Route path="/" element={<Login />} />
