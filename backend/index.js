@@ -10,7 +10,7 @@ import { migrarDocumentos } from './migrations/documentos.js';
 import crearRutasDocumentos from './routes/documentos.js';
 import crearRutasPNC from './routes/pnc.js';
 import crearRutasDAE from './routes/dae.js';
-import { enviarEmailBienvenida, notificarNuevaCotizacion, notificarCambioEstado } from './services/emailService.js';
+import { enviarEmailBienvenida, notificarNuevaCotizacion, notificarCambioEstado, notificarTecnicoNuevaTarea, notificarAdminServicioCompletado } from './services/emailService.js';
 
 
 
@@ -120,6 +120,9 @@ const initDB = async () => {
     // Migración: Agregar username y hacer email opcional
     await addColumn('usuarios', 'username', 'TEXT');
 
+    // Migración: Agregar notificaciones activas (por defecto true si tienen email)
+    await addColumn('usuarios', 'notificaciones_activas', 'BOOLEAN', 'TRUE');
+
     // Hacer email nullable (remover constraint NOT NULL)
     try {
       await pool.query('ALTER TABLE usuarios ALTER COLUMN email DROP NOT NULL');
@@ -127,10 +130,9 @@ const initDB = async () => {
       console.log('Email ya es nullable o error:', e.message);
     }
 
-    // Migración de usuarios existentes: mantener solo angel y alejandro
+    // Migración de usuarios existentes: asignar username a usuarios sin él
     try {
-      // Primero, asignar usernames a angel y alejandro si no los tienen
-      const usuarios = await pool.query('SELECT id, email, nombre FROM usuarios');
+      const usuarios = await pool.query('SELECT id, email, nombre, username FROM usuarios');
 
       for (const user of usuarios.rows) {
         if (!user.username) {
@@ -144,14 +146,7 @@ const initDB = async () => {
         }
       }
 
-      // Borrar usuarios que NO sean angel, alejandro o admin
-      await pool.query(`
-        DELETE FROM usuarios 
-        WHERE LOWER(nombre) NOT IN ('angel', 'alejandro', 'administrador')
-        AND LOWER(username) NOT IN ('angel', 'alejandro', 'admin')
-      `);
-
-      console.log('✅ Usuarios migrados: solo angel, alejandro y admin');
+      console.log('✅ Usuarios migrados: usernames asignados');
     } catch (e) {
       console.log('Error en migración de usuarios:', e.message);
     }
@@ -288,6 +283,10 @@ initDB();
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
+// Carpeta específica para documentos (cotizaciones, órdenes, reportes)
+const DOCUMENTOS_DIR = path.join(UPLOADS_DIR, 'documentos');
+if (!fs.existsSync(DOCUMENTOS_DIR)) fs.mkdirSync(DOCUMENTOS_DIR, { recursive: true });
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
@@ -296,6 +295,25 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+
+// Configuración específica para PDFs de documentos
+const storageDocumentos = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, DOCUMENTOS_DIR),
+  filename: (req, file, cb) => {
+    const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
+    cb(null, Date.now() + '-' + cleanName);
+  }
+});
+const uploadDocumentos = multer({ 
+  storage: storageDocumentos,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos PDF'));
+    }
+  }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -391,8 +409,7 @@ app.post('/api/servicios', upload.fields([{ name: 'foto', maxCount: 1 }, { name:
       new Date().toISOString().split('T')[0], null, null
     ]);
 
-    // Notificar a admins sobre nueva cotización (no bloqueante)
-    const admins = await pool.query('SELECT email FROM usuarios WHERE rol = $1', ['admin']);
+    // 📧 Notificar a TODOS los admins con notificaciones activas
     const cotizacion = {
       id: result.rows[0].id,
       titulo: data.titulo,
@@ -402,9 +419,7 @@ app.post('/api/servicios', upload.fields([{ name: 'foto', maxCount: 1 }, { name:
       descripcion: data.descripcion,
       fecha: new Date().toISOString()
     };
-    admins.rows.forEach(admin => {
-      notificarNuevaCotizacion(admin.email, cotizacion).catch(err => console.error('Error enviando email:', err));
-    });
+    notificarNuevaCotizacion(cotizacion, pool).catch(err => console.error('❌ Error enviando email:', err));
 
     res.json({ success: true, id: result.rows[0].id });
   } catch (error) {
@@ -426,6 +441,16 @@ app.put('/api/servicios/:id', upload.single('archivo'), async (req, res) => {
     if (update.estado) {
       await pool.query('UPDATE servicios SET estado = $1 WHERE id = $2', [update.estado, id]);
       estadoCambiado = true;
+      
+      // 📧 Si es finalizado, notificar a TODOS los admins
+      if (update.estado === 'finalizado') {
+        const servicioResult = await pool.query('SELECT * FROM servicios WHERE id = $1', [id]);
+        notificarAdminServicioCompletado(
+          servicioResult.rows[0],
+          servicioResult.rows[0].tecnicoAsignado || servicioResult.rows[0].tecnico,
+          pool
+        ).catch(err => console.error('❌ Error enviando email:', err));
+      }
     }
 
     if (update.estadoCliente) {
@@ -448,6 +473,13 @@ app.put('/api/servicios/:id', upload.single('archivo'), async (req, res) => {
 
     if (update.tecnicoAsignado) {
       await pool.query('UPDATE servicios SET tecnicoAsignado = $1 WHERE id = $2', [update.tecnicoAsignado, id]);
+      
+      // 📧 Notificar al técnico sobre nueva tarea
+      const tecnicoResult = await pool.query('SELECT email FROM usuarios WHERE nombre = $1', [update.tecnicoAsignado]);
+      if (tecnicoResult.rows[0]?.email) {
+        const servicioResult = await pool.query('SELECT * FROM servicios WHERE id = $1', [id]);
+        notificarTecnicoNuevaTarea(tecnicoResult.rows[0].email, servicioResult.rows[0], pool).catch(err => console.error('❌ Error enviando email:', err));
+      }
     }
 
     if (update.telefonoTecnico) {
@@ -483,8 +515,8 @@ app.put('/api/servicios/:id', upload.single('archivo'), async (req, res) => {
       const servicio = await pool.query('SELECT * FROM servicios WHERE id = $1', [id]);
       if (servicio.rows[0]) {
         const usuario = await pool.query('SELECT email FROM usuarios WHERE nombre = $1', [servicio.rows[0].usuario || servicio.rows[0].cliente]);
-        if (usuario.rows[0]) {
-          notificarCambioEstado(usuario.rows[0].email, servicio.rows[0]).catch(err => console.error('Error enviando email:', err));
+        if (usuario.rows[0]?.email) {
+          notificarCambioEstado(usuario.rows[0].email, servicio.rows[0], pool).catch(err => console.error('❌ Error enviando email:', err));
         }
       }
     }
@@ -535,17 +567,17 @@ app.post('/api/usuarios', async (req, res) => {
 
 app.put('/api/usuarios/:id', async (req, res) => {
   const { id } = req.params;
-  const { nombre, email, password, rol, telefono } = req.body;
+  const { nombre, email, password, rol, telefono, notificaciones_activas } = req.body;
   try {
     if (password) {
       await pool.query(
-        'UPDATE usuarios SET nombre = $1, email = $2, password = $3, rol = $4, telefono = $5 WHERE id = $6',
-        [nombre, email || null, password, rol, telefono || null, id]
+        'UPDATE usuarios SET nombre = $1, email = $2, password = $3, rol = $4, telefono = $5, notificaciones_activas = $6 WHERE id = $7',
+        [nombre, email || null, password, rol, telefono || null, notificaciones_activas !== undefined ? notificaciones_activas : true, id]
       );
     } else {
       await pool.query(
-        'UPDATE usuarios SET nombre = $1, email = $2, rol = $3, telefono = $4 WHERE id = $5',
-        [nombre, email || null, rol, telefono || null, id]
+        'UPDATE usuarios SET nombre = $1, email = $2, rol = $3, telefono = $4, notificaciones_activas = $5 WHERE id = $6',
+        [nombre, email || null, rol, telefono || null, notificaciones_activas !== undefined ? notificaciones_activas : true, id]
       );
     }
     res.json({ success: true });
@@ -594,9 +626,9 @@ app.post('/api/standalone-cotizaciones', async (req, res) => {
   }
 });
 
-app.post('/api/standalone-cotizaciones/upload', upload.single('pdf'), (req, res) => {
+app.post('/api/standalone-cotizaciones/upload', uploadDocumentos.single('pdf'), (req, res) => {
   if (req.file) {
-    res.json({ success: true, url: `uploads/${req.file.filename}` });
+    res.json({ success: true, url: `uploads/documentos/${req.file.filename}` });
   } else {
     res.status(400).json({ success: false, message: 'No se subió ningún archivo' });
   }

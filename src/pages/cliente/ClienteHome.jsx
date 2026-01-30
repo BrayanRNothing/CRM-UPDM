@@ -106,38 +106,35 @@ const ClienteHome = () => {
   // Render de tarjeta de cotización en mosaico
   const CotizacionCard = ({ cotizacion }) => {
     const badge = getEstadoBadge(cotizacion.estado);
-    const tieneAsignacion = (cotizacion.estado === 'aprobado' || cotizacion.estado === 'en-proceso') && cotizacion.tecnicoAsignado;
+    const tieneAsignacion = (cotizacion.estado === 'aprobado' || cotizacion.estado === 'en-proceso') && cotizacion.tecnicoasignado;
 
     return (
       <div
         onClick={() => setDetalleSeleccionado(cotizacion)}
         className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg transition-all cursor-pointer"
       >
-        <h3 className="font-bold text-gray-900 mb-1 text-base line-clamp-1">{cotizacion.titulo}</h3>
-        <p className="text-sm text-gray-500 mb-3">{cotizacion.cliente || cotizacion.usuario || 'Usuario'}</p>
+        <h3 className="font-bold text-gray-900 mb-3 text-base line-clamp-1">{cotizacion.titulo}</h3>
 
         {/* Badge de técnico asignado */}
         {tieneAsignacion && (
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3 mb-3">
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-xl p-3 mb-3">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                {cotizacion.tecnicoAsignado.charAt(0).toUpperCase()}
-              </div>
+              <span className="text-lg">✅</span>
               <div className="flex-1">
-                <div className="text-xs text-gray-600">Técnico Asignado</div>
-                <div className="font-bold text-gray-900 text-sm">{cotizacion.tecnicoAsignado}</div>
+                <div className="text-xs font-bold text-green-700">¡Técnico Asignado!</div>
+                <div className="font-bold text-gray-900 text-sm">{cotizacion.tecnicoasignado}</div>
               </div>
             </div>
-            {cotizacion.telefonoTecnico && (
+            {cotizacion.telefonotecnico && (
               <div className="text-xs text-gray-700 flex items-center gap-1 mb-1">
                 <span>📞</span>
-                <span>{cotizacion.telefonoTecnico}</span>
+                <span>{cotizacion.telefonotecnico}</span>
               </div>
             )}
-            {cotizacion.fechaProgramada && (
+            {cotizacion.fechaprogramada && (
               <div className="text-xs text-gray-700 flex items-center gap-1">
                 <span>📅</span>
-                <span>{new Date(cotizacion.fechaProgramada).toLocaleDateString('es-ES', {
+                <span>{new Date(cotizacion.fechaprogramada).toLocaleDateString('es-ES', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric',
@@ -213,42 +210,57 @@ const ClienteHome = () => {
   const renderHome = () => (
     <div className="pb-4">
       {/* Pestañas de estado */}
-      <div className="flex gap-2 mb-6 overflow-x-auto px-1 pb-2 scrollbar-hide">
+      <div className="flex gap-2 mb-6 overflow-x-auto px-1 pt-2 pb-2 scrollbar-hide">
         <button
           onClick={() => {
             setActiveStatusTab('pendientes');
             setShowAllPendientes(false);
           }}
-          className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'pendientes'
+          className={`relative px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'pendientes'
             ? 'bg-blue-600 text-white shadow-md'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
         >
           Pendientes
+          {pendientes.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md">
+              {pendientes.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => {
             setActiveStatusTab('en-proceso');
             setShowAllEnProceso(false);
           }}
-          className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'en-proceso'
+          className={`relative px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'en-proceso'
             ? 'bg-blue-600 text-white shadow-md'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
         >
           En proceso
+          {enProceso.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md">
+              {enProceso.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => {
             setActiveStatusTab('terminadas');
             setShowAllTerminadas(false);
           }}
-          className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'terminadas'
+          className={`relative px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeStatusTab === 'terminadas'
             ? 'bg-blue-600 text-white shadow-md'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
         >
           Terminadas
+          {terminadas.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md">
+              {terminadas.length}
+            </span>
+          )}
         </button>
       </div>
 

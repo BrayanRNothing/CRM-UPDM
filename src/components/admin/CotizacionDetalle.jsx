@@ -150,9 +150,7 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
                                     <InfoItem label="Dirección" value={cotizacion.direccion} icon="📍" />
                                     <InfoItem label="Teléfono / Contacto" value={cotizacion.telefono} icon="📞" />
-                                    <InfoItem label="Cantidad Solicitada" value={cotizacion.cantidad} icon="📦" />
-                                    <InfoItem label="Modelo / Referencia" value={cotizacion.modelo} icon="🔖" />
-                                    <InfoItem label="Tipo de Servicio" value={cotizacion.tipo} icon="🔧" />
+
                                     <InfoItem label="ID Sistema" value={cotizacion.id} icon="🆔" />
                                 </div>
 
@@ -187,13 +185,25 @@ function CotizacionDetalle({ cotizacion, onClose, onUpdate }) {
 
                                         {/* 2. PDF DESCARGABLE */}
                                         {cotizacion.pdf ? (
-                                            <button
+                                            <div
                                                 onClick={() => handleDescargarArchivo(cotizacion.pdf, `Evidencia_${cotizacion.id}.pdf`)}
-                                                className="h-24 w-36 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-xl flex flex-col items-center justify-center text-gray-600 hover:text-red-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
+                                                className="w-full sm:w-64 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-xl p-3 flex items-center gap-3 cursor-pointer group shadow-sm hover:shadow-md transition-all"
                                             >
-                                                <span className="text-xl group-hover:scale-110 transition">📄</span>
-                                                <span className="text-[10px] font-bold mt-1">Descargar PDF</span>
-                                            </button>
+                                                <div className="h-10 w-10 bg-red-100 text-red-600 rounded-lg flex items-center justify-center shrink-0">
+                                                    <span className="text-xl">📄</span>
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-bold text-gray-700 truncate group-hover:text-blue-700 transition-colors">
+                                                        Archivo Adjunto
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 font-mono truncate">
+                                                        Evidencia_{cotizacion.id}.pdf
+                                                    </span>
+                                                </div>
+                                                <div className="ml-auto text-gray-300 group-hover:text-blue-500 transition-colors">
+                                                    ⬇️
+                                                </div>
+                                            </div>
                                         ) : (
                                             <div className="h-24 w-24 bg-gray-50 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-[10px]">
                                                 Sin PDF

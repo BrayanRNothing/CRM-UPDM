@@ -24,13 +24,13 @@ const AdminLayout = () => {
           mouseControls: true,
           touchControls: true,
           gyroControls: false,
-          minHeight: 400.00,
-          minWidth: 400.00,
-          scale: 1.50,
+          minHeight: 200.00,
+          minWidth: 200.00,
+          scale: 1.00,
           scaleMobile: 1.00,
           color1: 0x101025,
           color2: 0x35b1f2,
-          size: 5.00,
+          size: 3.50,
           speed: 0.90
         });
       } catch (error) {
@@ -122,7 +122,7 @@ const AdminLayout = () => {
       {/* 1. SIDEBAR (Barra Lateral) con Vanta.js */}
       <aside
         ref={vantaRef}
-        className={`fixed inset-y-0 left-0 z-50 w-64 md:relative md:flex flex-col transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} overflow-hidden shadow-2xl md:shadow-none`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 md:relative md:flex flex-col transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} overflow-hidden shadow-2xl md:shadow-none bg-gradient-to-b from-blue-900 to-blue-800`}
       >
 
         {/* Overlay para mejorar legibilidad */}

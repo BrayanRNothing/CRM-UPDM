@@ -24,13 +24,13 @@ const DistribuidorLayout = () => {
           mouseControls: true,
           touchControls: true,
           gyroControls: false,
-          minHeight: 400.00,
-          minWidth: 400.00,
-          scale: 1.50,
+          minHeight: 200.00,
+          minWidth: 200.00,
+          scale: 1.00,
           scaleMobile: 1.00,
           color1: 0x101025,
           color2: 0x35b1f2,
-          size: 5.00,
+          size: 3.50,
           speed: 0.90
         });
       } catch (error) {
@@ -59,7 +59,7 @@ const DistribuidorLayout = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <header ref={vantaRef} className="shadow-lg px-6 py-4 flex justify-between items-center z-10 relative overflow-hidden">
+      <header ref={vantaRef} className="shadow-lg px-6 py-4 flex justify-between items-center z-10 relative overflow-hidden min-h-[80px] bg-gradient-to-r from-blue-900 to-blue-800">
         {/* Overlay para legibilidad */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-950 via-transparent to-blue-950 bg-opacity-50 pointer-events-none z-0"></div>
 

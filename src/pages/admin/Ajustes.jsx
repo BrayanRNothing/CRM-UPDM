@@ -209,10 +209,33 @@ function Ajustes() {
                   return;
                 }
 
-                if (e.target.checked) {
-                  toast.success('✅ Notificaciones activadas');
-                } else {
-                  toast.success('🔕 Notificaciones desactivadas');
+                try {
+                  const res = await fetch(`${API_BASE}/api/usuarios/${user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      nombre: user.nombre,
+                      email: user.email,
+                      rol: user.rol,
+                      telefono: user.telefono,
+                      notificaciones_activas: e.target.checked
+                    })
+                  });
+                  
+                  if (res.ok) {
+                    if (e.target.checked) {
+                      toast.success('✅ Notificaciones activadas');
+                    } else {
+                      toast.success('🔕 Notificaciones desactivadas');
+                    }
+                  } else {
+                    toast.error('Error al actualizar preferencias');
+                    e.target.checked = !e.target.checked; // Revertir
+                  }
+                } catch (error) {
+                  console.error(error);
+                  toast.error('Error de conexión');
+                  e.target.checked = !e.target.checked; // Revertir
                 }
               }}
             />

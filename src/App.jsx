@@ -27,6 +27,7 @@ const CrearReporteTrabajo = lazy(() => import('./pages/admin/CrearReporteTrabajo
 const Ajustes = lazy(() => import('./pages/admin/Ajustes.jsx'));
 const TecnicoHome = lazy(() => import('./pages/tecnico/TecnicoHome.jsx'));
 const NuevaSolicitud = lazy(() => import('./pages/tecnico/NuevaSolicitud.jsx'));
+const TecnicoAjustes = lazy(() => import('./pages/tecnico/TecnicoAjustes.jsx'));
 const DistribuidorHome = lazy(() => import('./pages/distribuidor/DistribuidorHome.jsx'));
 const ClienteHome = lazy(() => import('./pages/cliente/ClienteHome.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
@@ -131,6 +132,7 @@ function App() {
           <Route path="/tecnico" element={<TecnicoLayout />}>
             <Route index element={<TecnicoHome />} />
             <Route path="nueva-solicitud" element={<NuevaSolicitud />} />
+            <Route path="ajustes" element={<TecnicoAjustes />} />
           </Route>
 
           {/* --- USUARIO --- */}

@@ -95,6 +95,7 @@ function Servicios() {
         setFormAsignar({ cotizacionId: '', tecnicoId: '', fechaServicio: '', horaServicio: '', notas: '' });
         setCotizacionSeleccionada(null);
         cargarDatos();
+        setVistaActual('en-curso'); // Redirigir a servicios en curso
       }
     } catch (error) {
       console.error(error);
@@ -151,9 +152,9 @@ function Servicios() {
   // Filtrar servicios
   // Cotizaciones aprobadas: incluye aprobadas por clientes (estadoCliente: 'aprobado') Y aprobadas por técnicos (estado: 'aprobado')
   const cotizacionesAprobadas = servicios.filter(s =>
-    (s.estadoCliente === 'aprobado' || s.estado === 'aprobado') && !s.tecnicoAsignado
+    (s.estadocliente === 'aprobado' || s.estado === 'aprobado') && !s.tecnicoasignado
   );
-  const serviciosEnCurso = servicios.filter(s => s.estado === 'en-proceso' && s.tecnicoAsignado);
+  const serviciosEnCurso = servicios.filter(s => s.estado === 'en-proceso' && s.tecnicoasignado);
   const serviciosFinalizados = servicios.filter(s => s.estado === 'finalizado');
 
   {/*################################## 4 Tarjetas ##########################################################*/ }
@@ -251,7 +252,7 @@ function Servicios() {
                   </div>
 
                   <div className="text-right">
-                    <p className="text-3xl font-bold text-green-600">${cot.precio || cot.precioEstimado || 'N/A'}</p>
+                    <p className="text-3xl font-bold text-green-600">${cot.precio || cot.precioestimado || 'N/A'}</p>
                     <p className="text-xs text-gray-500 mt-1">Precio aprobado</p>
                   </div>
 
@@ -310,16 +311,11 @@ function Servicios() {
                       <span className="flex items-center gap-1.5">
                         <span className="text-blue-600">👤</span> {cotizacionSeleccionada.cliente || cotizacionSeleccionada.usuario}
                       </span>
-                      {cotizacionSeleccionada.telefono && (
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-green-600">📞</span> {cotizacionSeleccionada.telefono}
-                        </span>
-                      )}
                       <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold capitalize">
                         {cotizacionSeleccionada.tipo.replace(/_/g, ' ')}
                       </span>
                       <span className="ml-auto text-4xl font-bold text-green-600">
-                        ${cotizacionSeleccionada.precio || cotizacionSeleccionada.precioEstimado || 'N/A'}
+                        ${cotizacionSeleccionada.precio || cotizacionSeleccionada.precioestimado || 'N/A'}
                       </span>
                     </div>
                   </div>
@@ -331,9 +327,6 @@ function Servicios() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <InfoItem label="Dirección" value={cotizacionSeleccionada.direccion} icon="📍" />
                       <InfoItem label="Teléfono / Contacto" value={cotizacionSeleccionada.telefono} icon="📞" />
-                      <InfoItem label="Cantidad Solicitada" value={cotizacionSeleccionada.cantidad} icon="📦" />
-                      <InfoItem label="Modelo / Referencia" value={cotizacionSeleccionada.modelo} icon="🔖" />
-                      <InfoItem label="Tipo de Servicio" value={cotizacionSeleccionada.tipo} icon="🔧" />
                       <InfoItem label="ID Sistema" value={cotizacionSeleccionada.id} icon="🆔" />
                     </div>
 
@@ -388,11 +381,11 @@ function Servicios() {
                     </div>
 
                     {/* Cotización (si existe) */}
-                    {cotizacionSeleccionada.respuestaAdmin && (
+                    {cotizacionSeleccionada.respuestacotizacion && (
                       <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
                         <h4 className="text-[10px] font-bold text-blue-600 uppercase mb-2">Detalles de la Cotización</h4>
                         <p className="text-gray-700 text-xs leading-relaxed">
-                          {cotizacionSeleccionada.respuestaAdmin}
+                          {cotizacionSeleccionada.respuestacotizacion}
                         </p>
                       </div>
                     )}
@@ -522,7 +515,7 @@ function Servicios() {
                       </span>
                     </div>
                     <div className="text-right ml-2">
-                      <div className="text-2xl font-bold text-green-600">${serv.precio || serv.precioEstimado || 'N/A'}</div>
+                      <div className="text-2xl font-bold text-green-600">${serv.precio || serv.precioestimado || 'N/A'}</div>
                       <div className="text-[10px] text-gray-400 uppercase">Precio</div>
                     </div>
                   </div>
@@ -538,11 +531,11 @@ function Servicios() {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-purple-600">🔧</span>
                       <span className="text-gray-600">Técnico:</span>
-                      <span className="font-semibold text-purple-700 truncate">{serv.tecnicoAsignado}</span>
+                      <span className="font-semibold text-purple-700 truncate">{serv.tecnicoasignado}</span>
                     </div>
 
                     {serv.direccion && (
-                      <div className="flex items-start gap-2 text-sm">
+                      <div className="flex items-start gap-2">
                         <span className="text-orange-600 mt-0.5">📍</span>
                         <span className="text-gray-600">Dirección:</span>
                         <span className="text-gray-700 text-xs line-clamp-2 flex-1">{serv.direccion}</span>
@@ -568,10 +561,67 @@ function Servicios() {
                     )}
                   </div>
 
-                  {/* Notas */}
+                  {/* Descripción */}
+                  {serv.descripcion && (
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 mb-3">
+                      <div className="text-[10px] font-bold text-gray-600 uppercase mb-1">Descripción</div>
+                      <p className="text-xs text-gray-700 line-clamp-3">{serv.descripcion}</p>
+                    </div>
+                  )}
+
+                  {/* Archivos del cliente */}
+                  {(serv.imagenes || serv.pdfs) && (
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 mb-3">
+                      <div className="text-[10px] font-bold text-blue-600 uppercase mb-2">📎 Archivos del Cliente</div>
+                      <div className="space-y-1">
+                        {serv.imagenes && (
+                          <a
+                            href={serv.imagenes}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            🖼️ Ver imágenes
+                          </a>
+                        )}
+                        {serv.pdfs && (
+                          <a
+                            href={serv.pdfs}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            📄 Ver PDF
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cotización del Admin */}
+                  {(serv.respuestacotizacion || serv.pdfcotizacion) && (
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-200 mb-3">
+                      <div className="text-[10px] font-bold text-green-600 uppercase mb-2">💬 Cotización Admin</div>
+                      {serv.respuestacotizacion && (
+                        <p className="text-xs text-gray-700 mb-2 line-clamp-3">{serv.respuestacotizacion}</p>
+                      )}
+                      {serv.pdfcotizacion && (
+                        <a
+                          href={serv.pdfcotizacion}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-green-600 hover:text-green-800 flex items-center gap-1"
+                        >
+                          📄 Ver PDF de cotización
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notas de asignación */}
                   {serv.notas && (
                     <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
-                      <div className="text-[10px] font-bold text-purple-600 uppercase mb-1">Notas</div>
+                      <div className="text-[10px] font-bold text-purple-600 uppercase mb-1">Notas de Asignación</div>
                       <p className="text-xs text-gray-700 line-clamp-3">{serv.notas}</p>
                     </div>
                   )}
@@ -622,7 +672,7 @@ function Servicios() {
                       </span>
                     </div>
                     <div className="text-right ml-2">
-                      <div className="text-2xl font-bold text-green-600">${serv.precio || serv.precioEstimado || 'N/A'}</div>
+                      <div className="text-2xl font-bold text-green-600">${serv.precio || serv.precioestimado || 'N/A'}</div>
                       <div className="text-[10px] text-gray-400 uppercase">Precio</div>
                     </div>
                   </div>
@@ -638,7 +688,7 @@ function Servicios() {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-green-600">🔧</span>
                       <span className="text-gray-600">Completado por:</span>
-                      <span className="font-semibold text-green-700 truncate">{serv.tecnicoAsignado}</span>
+                      <span className="font-semibold text-green-700 truncate">{serv.tecnicoasignado}</span>
                     </div>
 
                     {serv.direccion && (

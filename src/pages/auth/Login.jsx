@@ -110,7 +110,7 @@ const Login = () => {
 
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold tracking-wider mb-2">Infiniguard SYS</h1>
-          <p className="text-blue-200 text-sm font-light tracking-widest uppercase">Sistema de Gestión</p>
+          <p className="text-blue-200 text-sm font-light tracking-widest uppercase"></p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
@@ -147,17 +147,30 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Checkbox Recordar Sesión */}
-          <div className="flex items-center gap-2 px-1">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-            />
-            <label htmlFor="rememberMe" className="text-sm text-blue-100 cursor-pointer select-none">
-              Recordar sesión
+          {/* Checkbox Recordar Sesión - Diseño Toggle Moderno */}
+          <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-lg">
+                <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <label htmlFor="rememberMe" className="text-sm font-semibold text-white cursor-pointer select-none block">
+                  Recordar sesión
+                </label>
+                <p className="text-xs text-blue-200/70">Mantener sesión activa</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-14 h-7 bg-white/10 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-500/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-blue-500 shadow-inner"></div>
             </label>
           </div>
 
@@ -172,6 +185,14 @@ const Login = () => {
 
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-500">No tienes una cuenta? <a href='/register' className="text-blue-500 hover:underline">Registrate</a></p>
+        </div>
+      </div>
+
+      {/* Versión en la esquina inferior */}
+      <div className="fixed bottom-4 left-4 z-20">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-black/30 backdrop-blur-sm border border-white/10 rounded-full">
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+          <span className="text-xs font-medium text-white/70">v1.0.0 Producción</span>
         </div>
       </div>
     </div>

@@ -77,7 +77,7 @@ const Comisiones = () => {
 
         const totalServicios = serviciosTecnico.length;
         const totalGanado = serviciosTecnico.reduce((sum, s) => {
-            const precio = parseFloat(s.precio || s.precioEstimado) || 0;
+            const precio = parseFloat(s.precio || s.precioestimado) || 0;
             const porcentaje = parseFloat(s.porcentajeComision) || 0;
             return sum + (precio * porcentaje / 100);
         }, 0);
@@ -305,7 +305,7 @@ const Comisiones = () => {
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {serviciosFiltrados.map(servicio => {
-                                    const precio = parseFloat(servicio.precio || servicio.precioEstimado) || 0;
+                                    const precio = parseFloat(servicio.precio || servicio.precioestimado) || 0;
                                     const porcentaje = parseFloat(servicio.porcentajeComision) || 0;
                                     const comision = precio * porcentaje / 100;
 

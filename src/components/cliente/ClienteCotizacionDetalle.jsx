@@ -146,17 +146,17 @@ function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                         <h2 className="text-lg font-bold text-gray-900 mb-4">Respuesta</h2>
 
                         {/* Precio (si está cotizado o aprobado) */}
-                        {(esCotizado || esAprobado || esEnProceso || esFinalizado) && cotizacion.precioEstimado && (
+                        {(esCotizado || esAprobado || esEnProceso || esFinalizado) && cotizacion.precioestimado && (
                             <div className="bg-gray-200 rounded-xl p-4 mb-3">
                                 <div className="text-xs text-gray-600 mb-1">Precio (respuesta admin)</div>
-                                <div className="text-2xl font-bold text-gray-900">${cotizacion.precioEstimado}</div>
+                                <div className="text-2xl font-bold text-gray-900">${cotizacion.precioestimado}</div>
                             </div>
                         )}
 
                         {/* PDF de cotización */}
-                        {cotizacion.pdfCotizacion && (
+                        {cotizacion.pdfcotizacion && (
                             <button
-                                onClick={() => handleDescargarPDF(cotizacion.pdfCotizacion, `Cotizacion_${cotizacion.id}.pdf`)}
+                                onClick={() => handleDescargarPDF(cotizacion.pdfcotizacion, `Cotizacion_${cotizacion.id}.pdf`)}
                                 className="w-full bg-gray-200 hover:bg-gray-300 rounded-xl p-4 mb-3 text-center font-semibold text-gray-700 transition-all"
                             >
                                 📥 PDF
@@ -164,31 +164,31 @@ function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                         )}
 
                         {/* Notas extra */}
-                        {cotizacion.respuestaCotizacion && (
+                        {cotizacion.respuestacotizacion && (
                             <div className="bg-gray-200 rounded-xl p-4 mb-3">
                                 <div className="text-xs text-gray-600 mb-2">Notas extra</div>
-                                <p className="text-gray-800 text-sm">{cotizacion.respuestaCotizacion}</p>
+                                <p className="text-gray-800 text-sm">{cotizacion.respuestacotizacion}</p>
                             </div>
                         )}
 
                         {/* Información del técnico (si está aprobado, en proceso o finalizado) */}
-                        {(esAprobado || esEnProceso || esFinalizado) && cotizacion.tecnicoAsignado && (
+                        {(esAprobado || esEnProceso || esFinalizado) && cotizacion.tecnicoasignado && (
                             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
                                 <div className="flex items-center gap-3 mb-3">
-                                    <Avatar name={cotizacion.tecnicoAsignado} size="md" />
+                                    <Avatar name={cotizacion.tecnicoasignado} size="md" />
                                     <div>
                                         <div className="text-xs text-gray-600">Técnico Asignado</div>
-                                        <div className="font-bold text-gray-900">{cotizacion.tecnicoAsignado}</div>
+                                        <div className="font-bold text-gray-900">{cotizacion.tecnicoasignado}</div>
                                     </div>
                                 </div>
-                                {cotizacion.telefonoTecnico && (
+                                {cotizacion.telefonotecnico && (
                                     <div className="text-sm text-gray-700 mb-2">
-                                        📞 {cotizacion.telefonoTecnico}
+                                        📞 {cotizacion.telefonotecnico}
                                     </div>
                                 )}
-                                {cotizacion.fechaProgramada && (
+                                {cotizacion.fechaprogramada && (
                                     <div className="text-sm text-gray-700">
-                                        📅 {new Date(cotizacion.fechaProgramada).toLocaleDateString('es-ES', {
+                                        📅 {new Date(cotizacion.fechaprogramada).toLocaleDateString('es-ES', {
                                             day: 'numeric',
                                             month: 'long',
                                             year: 'numeric',
@@ -309,14 +309,14 @@ function ClienteCotizacionDetalle({ cotizacion, onClose, onUpdate }) {
                         </div>
 
                         {/* Precio destacado */}
-                        {cotizacion.precioEstimado && (
+                        {cotizacion.precioestimado && (
                             <div className={`rounded-2xl p-4 mb-5 text-center ${modalConfirmacion === 'aprobado'
                                 ? 'bg-green-50 border border-green-200'
                                 : 'bg-gray-100 border border-gray-200'
                                 }`}>
                                 <div className="text-xs text-gray-600 mb-1">Precio de la cotización</div>
                                 <div className="text-3xl font-bold text-gray-900">
-                                    ${cotizacion.precioEstimado}
+                                    ${cotizacion.precioestimado}
                                 </div>
                             </div>
                         )}
