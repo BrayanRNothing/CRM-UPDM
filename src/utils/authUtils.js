@@ -40,7 +40,27 @@ export const isAuthenticated = () => {
  */
 export const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+};
+
+/**
+ * Obtiene el token de autenticación
+ */
+export const getToken = () => {
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
+};
+
+/**
+ * Guarda el token de autenticación
+ */
+export const saveToken = (token, remember = false) => {
+    if (remember) {
+        localStorage.setItem('token', token);
+    } else {
+        sessionStorage.setItem('token', token);
+    }
 };
 
 /**

@@ -3,10 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 // Layouts
-import AdminLayout from './layouts/AdminLayout.jsx';
-import TecnicoLayout from './layouts/TecnicoLayout.jsx';
-import DistribuidorLayout from './layouts/DistribuidorLayout.jsx';
-import ClienteLayout from './layouts/ClienteLayout.jsx';
+import ProspectorLayout from './layouts/ProspectorLayout.jsx';
+import CloserLayout from './layouts/CloserLayout.jsx';
 
 // Components
 import SkeletonLoader from './components/ui/SkeletonLoader.jsx';
@@ -15,22 +13,24 @@ import SkeletonLoader from './components/ui/SkeletonLoader.jsx';
 import React, { Suspense, lazy } from 'react';
 const Login = lazy(() => import('./pages/auth/Login.jsx'));
 const Register = lazy(() => import('./pages/auth/Register.jsx'));
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard.jsx'));
-const Servicios = lazy(() => import('./pages/admin/Servicios.jsx'));
-const Cotizaciones = lazy(() => import('./pages/admin/Cotizaciones.jsx'));
-const Usuarios = lazy(() => import('./pages/admin/Usuarios.jsx'));
-const Comisiones = lazy(() => import('./pages/admin/Comisiones.jsx'));
-const Documentos = lazy(() => import('./pages/admin/Documentos.jsx'));
-const CrearCotizaciones = lazy(() => import('./pages/admin/CrearCotizaciones.jsx'));
-const CrearOrdenTrabajo = lazy(() => import('./pages/admin/CrearOrdenTrabajo.jsx'));
-const CrearReporteTrabajo = lazy(() => import('./pages/admin/CrearReporteTrabajo.jsx'));
-const Ajustes = lazy(() => import('./pages/admin/Ajustes.jsx'));
-const TecnicoHome = lazy(() => import('./pages/tecnico/TecnicoHome.jsx'));
-const NuevaSolicitud = lazy(() => import('./pages/tecnico/NuevaSolicitud.jsx'));
-const TecnicoAjustes = lazy(() => import('./pages/tecnico/TecnicoAjustes.jsx'));
-const DistribuidorHome = lazy(() => import('./pages/distribuidor/DistribuidorHome.jsx'));
-const ClienteHome = lazy(() => import('./pages/cliente/ClienteHome.jsx'));
+const VendedorAjustes = lazy(() => import('./pages/vendedor/VendedorAjustes.jsx'));
+const ComponentPreview = lazy(() => import('./pages/ComponentPreview.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+
+// Prospector Pages
+const ProspectorDashboard = lazy(() => import('./pages/prospector/ProspectorDashboard.jsx'));
+const ProspectorCalendario = lazy(() => import('./pages/prospector/ProspectorCalendario.jsx'));
+const ProspectorSeguimiento = lazy(() => import('./pages/prospector/ProspectorSeguimiento.jsx'));
+
+// Closer Pages
+const CloserDashboard = lazy(() => import('./pages/closer/CloserDashboard.jsx'));
+const CloserCalendario = lazy(() => import('./pages/closer/CloserCalendario.jsx'));
+const CloserMonitoreoProspectors = lazy(() => import('./pages/closer/CloserMonitoreoProspectors.jsx'));
+
+// Shared Components
+const CRMProspectos = lazy(() => import('./pages/common/CRMProspectos.jsx'));
+const CRMClientes = lazy(() => import('./pages/common/CRMClientes.jsx'));
+const UserManagement = lazy(() => import('./pages/common/UserManagement.jsx'));
 
 function App() {
   return (
@@ -106,41 +106,33 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* --- RUTAS DE TUS 4 ROLES --- */}
-          {/* Admin - Rutas Protegidas con Layout */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="cotizaciones" element={<Cotizaciones />} />
-            <Route path="servicios" element={<Servicios />} />
-            <Route path="comisiones" element={<Comisiones />} />
-            <Route path="usuarios" element={<Usuarios />} />
-            <Route path="documentos" element={<Documentos />} />
-            <Route path="crear-cotizaciones" element={<CrearCotizaciones />} />
-            <Route path="crear-orden-trabajo" element={<CrearOrdenTrabajo />} />
-            <Route path="crear-reporte-trabajo" element={<CrearReporteTrabajo />} />
-            <Route path="ajustes" element={<Ajustes />} />
+          {/* --- PROSPECTOR --- */}
+          <Route path="/prospector" element={<ProspectorLayout />}>
+            <Route index element={<ProspectorDashboard />} />
+            <Route path="seguimiento" element={<ProspectorSeguimiento />} />
+            <Route path="calendario" element={<ProspectorCalendario />} />
+            <Route path="prospectos" element={<CRMProspectos />} />
+            <Route path="clientes" element={<CRMClientes />} />
+            <Route path="usuarios/prospectors" element={<UserManagement initialRole="prospector" />} />
+            <Route path="usuarios/closers" element={<UserManagement initialRole="closer" />} />
+            <Route path="ajustes" element={<VendedorAjustes />} />
           </Route>
 
-          {/* --- DISTRIBUIDOR --- */}
-          <Route path="/distribuidor" element={<DistribuidorLayout />}>
-            <Route index element={<DistribuidorHome />} />
-            <Route path="recubrimientos" element={<div>Cotizar Recubrimiento</div>} />
-            <Route path="garantias" element={<div>Garantía Extendida</div>} />
+          <Route path="/closer" element={<CloserLayout />}>
+            <Route index element={<CloserDashboard />} />
+            <Route path="calendario" element={<CloserCalendario />} />
+            <Route path="prospectos" element={<CRMProspectos />} />
+            <Route path="clientes" element={<CRMClientes />} />
+            <Route path="usuarios/prospectors" element={<UserManagement initialRole="prospector" />} />
+            <Route path="usuarios/closers" element={<UserManagement initialRole="closer" />} />
+            <Route path="monitoreo-prospectors" element={<CloserMonitoreoProspectors />} />
+            <Route path="ajustes" element={<VendedorAjustes />} />
           </Route>
 
-          {/* --- TÉCNICO --- */}
-          <Route path="/tecnico" element={<TecnicoLayout />}>
-            <Route index element={<TecnicoHome />} />
-            <Route path="nueva-solicitud" element={<NuevaSolicitud />} />
-            <Route path="ajustes" element={<TecnicoAjustes />} />
-          </Route>
 
-          {/* --- USUARIO --- */}
-          <Route path="/usuario" element={<ClienteLayout />}>
-            <Route index element={<ClienteHome />} />
-            <Route path="nuevo-equipo" element={<div>Formulario Equipo</div>} />
-            <Route path="nuevo-recubrimiento" element={<div>Formulario Recubrimiento</div>} />
-          </Route>
+
+          {/* --- PÁGINA SECRETA DE PREVIEW --- */}
+          <Route path="/prev" element={<ComponentPreview />} />
 
           {/* Si escriben una ruta que no existe, los mandamos al Login */}
           <Route path="*" element={<NotFound />} />

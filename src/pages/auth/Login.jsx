@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as THREE from 'three';
-import CELLS from 'vanta/dist/vanta.cells.min.js';
+import AnimatedGridBackground from '../../components/ui/AnimatedGridBackground';
+import updmLogo from '../../assets/UPDMLOGO4K.png';
 import Register from './Register';
-import { getUser, saveUser } from '../../utils/authUtils';
+import { getUser, saveUser, saveToken } from '../../utils/authUtils';
 
 // URL DEL BACKEND (Ajústala si pruebas en local)
 import API_URL from '../../config/api';
@@ -16,8 +16,7 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const vantaRef = useRef(null);
-  const vantaInstanceRef = useRef(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     // Auto-login si hay sesión guardada
@@ -25,41 +24,14 @@ const Login = () => {
     if (user) {
       const { rol } = user;
       switch (rol) {
-        case 'admin': navigate('/admin'); break;
+        case 'prospector': navigate('/prospector'); break;
+        case 'closer': navigate('/closer'); break;
         case 'tecnico': navigate('/tecnico'); break;
         case 'distribuidor': navigate('/distribuidor'); break;
         case 'usuario': navigate('/usuario'); break;
         default: break;
       }
     }
-
-    // Inicialización del efecto de fondo (Vanta JS)
-    if (vantaRef.current && !vantaInstanceRef.current) {
-      try {
-        vantaInstanceRef.current = CELLS({
-          el: vantaRef.current,
-          THREE: THREE,
-          mouseControls: true,
-          touchControls: true,
-          gyroControls: false,
-          minHeight: 200.00,
-          minWidth: 200.00,
-          scale: 1.00,
-          color1: 0x101025,
-          color2: 0x35b1f2,
-          size: 5.00,
-          speed: 0.90
-        });
-      } catch (error) {
-        console.error("Error al iniciar Vanta:", error);
-      }
-    }
-    return () => {
-      if (vantaInstanceRef.current) {
-        vantaInstanceRef.current.destroy();
-        vantaInstanceRef.current = null;
-      }
-    };
   }, [navigate]);
 
   const handleLogin = async (e) => {
@@ -67,135 +39,190 @@ const Login = () => {
     setError('');
     setLoading(true);
 
+    // 🔐 USUARIOS DE PRUEBA LOCALES
+    if (username === 'closer' && password === '123') {
+      const localUser = { id: 1, nombre: 'Closer Test', username: 'closer', email: 'closer@test.com', rol: 'closer' };
+      saveUser(localUser, rememberMe);
+      setLoading(false);
+      navigate('/closer');
+      return;
+    }
+    if (username === 'prospector' && password === '123') {
+      const localUser = { id: 2, nombre: 'Prospector Test', username: 'prospector', email: 'prospor@test.com', rol: 'prospector' };
+      saveUser(localUser, rememberMe);
+      setLoading(false);
+      navigate('/prospector');
+      return;
+    }
+
+    // Si no es el usuario local, intentar con el backend
     try {
-      const response = await fetch(`${API_URL}/api/login`, {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ usuario: username, contraseña: password }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Login exitoso - guardar según preferencia de "recordar sesión"
-        saveUser(data.user, rememberMe);
+        // Login exitoso - guardar usuario y token
+        const userData = data.usuario || data.user;
+        saveUser(userData, rememberMe);
+        if (data.token) {
+          saveToken(data.token, rememberMe);
+        }
 
         // Redirigimos según el rol
-        const { rol } = data.user;
+        const { rol } = userData;
         switch (rol) {
-          case 'admin': navigate('/admin'); break;
+          case 'prospector': navigate('/prospector'); break;
+          case 'closer': navigate('/closer'); break;
           case 'tecnico': navigate('/tecnico'); break;
           case 'distribuidor': navigate('/distribuidor'); break;
           case 'usuario': navigate('/usuario'); break;
           default: navigate('/'); // Por seguridad
         }
       } else {
-        setError(data.message || 'Credenciales incorrectas');
+        setError(data.mensaje || data.message || 'Credenciales incorrectas');
       }
     } catch (err) {
       console.error('Error:', err);
-      setError('No hay conexión con el servidor ⚠️');
+      setError('No hay conexión con el servidor. Usa admin/123 para acceso local ⚠️');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div ref={vantaRef} className="flex min-h-screen items-center justify-center text-white px-4 sm:px-6 lg:px-8">
-
-      {/* Tarjeta con efecto Glass */}
-      <div className="z-10 w-full max-w-md bg-black/40 backdrop-blur-lg p-8 rounded-2xl border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold tracking-wider mb-2">Infiniguard SYS</h1>
-          <p className="text-blue-200 text-sm font-light tracking-widest uppercase"></p>
+    <AnimatedGridBackground mode="light">
+      <div
+        className="relative flex min-h-screen items-center justify-center px-4 py-10 text-slate-900 sm:px-6 lg:px-8"
+        style={{ fontFamily: '"Space Grotesk", "Poppins", sans-serif' }}
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-32 right-10 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-teal-400/20 blur-3xl" />
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-
-          {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-xl text-sm flex items-center justify-center gap-2 animate-pulse">
-              <span>🚫</span> {error}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Usuario</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                placeholder="usuario"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Contraseña</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Checkbox Recordar Sesión - Diseño Toggle Moderno */}
-          <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-lg">
-                <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
+        <div className="relative w-full max-w-5xl">
+          <div className="grid gap-12 p-4 lg:grid-cols-2 lg:p-8 items-center">
+            <div className="flex flex-col justify-between space-y-8">
+              <div className="p-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100/50 bg-emerald-50/50 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-800 font-bold backdrop-blur-sm">
+                  Acceso seguro
+                </div>
+                <div className="mt-8 flex items-center">
+                  <img
+                    src={updmLogo}
+                    alt="UPDM"
+                    className="h-32 w-auto drop-shadow-xl"
+                  />
+                </div>
+                <p className="mt-6 text-lg text-slate-800 font-medium leading-relaxed drop-shadow-sm">
+                  Administra clientes, servicios y reportes desde un solo lugar.
+                </p>
               </div>
-              <div>
-                <label htmlFor="rememberMe" className="text-sm font-semibold text-white cursor-pointer select-none block">
-                  Recordar sesión
-                </label>
-                <p className="text-xs text-blue-200/70">Mantener sesión activa</p>
+              <div className="p-4 text-sm text-emerald-900">
+                <p className="font-bold text-emerald-950 flex items-center gap-2 text-base">
+                  <span className="text-2xl">🛡️</span> Tip de seguridad
+                </p>
+                <p className="mt-2 text-emerald-900 font-medium">Usa una contraseña única y no la compartas con nadie.</p>
               </div>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                id="rememberMe"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-14 h-7 bg-white/10 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-500/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-blue-500 shadow-inner"></div>
-            </label>
+
+            <div className="p-8">
+              <h2 className="text-4xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent drop-shadow-sm">Inicia sesión</h2>
+              <p className="mt-3 text-base text-slate-700 font-semibold">Completa tus datos para continuar.</p>
+
+              <form onSubmit={handleLogin} className="mt-10 space-y-8">
+                {error && (
+                  <div className="rounded-2xl border border-red-200/50 bg-red-50/80 backdrop-blur-sm px-4 py-3 text-sm text-red-700 shadow-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-emerald-800 ml-1 mb-1">Usuario o correo</label>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      className="mt-1 w-full rounded-xl border border-slate-200/60 bg-white/50 backdrop-blur-sm px-4 py-3.5 text-slate-900 placeholder-slate-500 focus:border-emerald-400 focus:bg-white/80 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm"
+                      placeholder="Ingresa tu usuario"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-emerald-800 ml-1 mb-1">Contraseña</label>
+                    <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white/50 backdrop-blur-sm px-4 py-3.5 focus-within:border-emerald-400 focus-within:bg-white/80 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all shadow-sm">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                        className="w-full bg-transparent text-slate-900 placeholder-slate-500 outline-none"
+                        placeholder="••••••••"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
+                      >
+                        {showPassword ? 'Ocultar' : 'Mostrar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 bg-white text-emerald-500 focus:ring-emerald-500/20"
+                    />
+                    Recordar sesión
+                  </label>
+                  <a href="/recuperar" className="text-emerald-700 hover:text-emerald-900">
+                    Olvidaste tu contraseña?
+                  </a>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 font-bold text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-500/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? 'Validando...' : 'Iniciar sesión'}
+                </button>
+
+                <div className="text-center text-xs text-slate-600 font-medium">
+                  No tienes una cuenta?{' '}
+                  <a href="/register" className="text-emerald-700 hover:text-emerald-900 underline decoration-2 underline-offset-4 hover:decoration-emerald-900">
+                    Regístrate aquí
+                  </a>
+                </div>
+              </form>
+            </div>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-          >
-            {loading ? 'Validando...' : 'INICIAR SESIÓN'}
-          </button>
-        </form>
-
-        <div className="mt-8 text-center">
-          <p className="text-xs text-gray-500">No tienes una cuenta? <a href='/register' className="text-blue-500 hover:underline">Registrate</a></p>
+        <div className="fixed bottom-4 left-4 z-20">
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-slate-600 shadow-sm backdrop-blur-sm">
+            <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div>
+            <span className="text-xs font-medium">v0.0.0 Producción</span>
+          </div>
         </div>
       </div>
-
-      {/* Versión en la esquina inferior */}
-      <div className="fixed bottom-4 left-4 z-20">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-black/30 backdrop-blur-sm border border-white/10 rounded-full">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          <span className="text-xs font-medium text-white/70">v1.0.0 Producción</span>
-        </div>
-      </div>
-    </div>
+    </AnimatedGridBackground>
   );
 };
 

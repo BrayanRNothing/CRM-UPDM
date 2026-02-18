@@ -1,171 +1,106 @@
-# InfiniguardSYS
+# 🚀 CRM Base Template
 
-Sistema completo de gestión empresarial con módulos de usuarios, servicios, cotizaciones, documentos y estadísticas de encuestas HVACR.
+## 📋 Descripción
 
-## 🚀 Características
+Esta es una plantilla base reutilizable para sistemas CRM personalizados. El sistema ha sido limpiado de toda lógica de negocio específica, conexiones a backend y base de datos, dejando solo la estructura fundamental y componentes UI reutilizables.
 
-### Frontend
-- ✅ Dashboard administrativo completo
-- ✅ Gestión de usuarios (Admin, Técnicos, Clientes, Distribuidores)
-- ✅ Sistema de servicios y cotizaciones
-- ✅ Generación de PDFs (cotizaciones, órdenes de trabajo)
-- ✅ Sistema de documentos con historial
-- ✅ **Estadísticas de encuestas HVACR** (NUEVO)
-- ✅ Respaldo y restauración de base de datos
-- ✅ Diseño responsive con TailwindCSS
+## ✨ Características
 
-### Backend
-- ✅ API REST con Express.js
-- ✅ Base de datos SQLite
-- ✅ Sistema de autenticación
-- ✅ Gestión de archivos con Multer
-- ✅ **Endpoints de encuestas con scoring automático** (NUEVO)
-- ✅ Exportación/Importación de datos
+### ✅ Lo que INCLUYE:
+- 🎨 **Sistema de autenticación** (Login/Register)
+- 👥 **4 roles predefinidos**: Admin, Técnico, Distribuidor, Cliente
+- 🎯 **Layouts responsivos** con navegación por rol
+- 🧩 **Componentes UI reutilizables**
+- 📊 **Dashboards base** (plantillas vacías listas para personalizar)
+- ⚙️ **Gestión de usuarios** (estructura base)
+- 🔧 **Página de ajustes** (estructura base)
+- 🎨 **Diseño moderno** con Vanta.js backgrounds
+- 🔔 **Sistema de notificaciones** (react-hot-toast)
 
-## 🆕 Sistema de Encuestas
+### ❌ Lo que NO incluye (eliminado):
+- ❌ Backend/API
+- ❌ Base de datos
+- ❌ Lógica de negocio específica
+- ❌ Módulos de documentos, servicios, cotizaciones, comisiones
+- ❌ Configuraciones de deployment (Railway, Vercel)
 
-### Características
-- Recepción automática de encuestas desde EncuestasAPI
-- Cálculo automático de puntuación (0-100)
-- Detección de nivel de madurez (5 niveles)
-- Visualización de estadísticas por categoría
-- Diagnósticos y recomendaciones automáticas
+## 🏗️ Estructura del Proyecto
 
-### Endpoints
-- `POST /api/encuestas/responder` - Recibir nueva encuesta
-- `GET /api/encuestas` - Listar todas las encuestas
-- `GET /api/encuestas/:id` - Detalle con puntuaciones por categoría
+```
+src/
+├── pages/
+│   ├── auth/           # Login y Register
+│   ├── admin/          # Dashboard Admin, Usuarios, Ajustes
+│   ├── tecnico/        # Panel Técnico
+│   ├── distribuidor/   # Panel Distribuidor
+│   └── cliente/        # Panel Cliente
+├── layouts/            # Layouts por rol con navegación
+├── components/
+│   └── ui/            # Componentes reutilizables
+└── utils/             # Utilidades (authUtils, helpers)
+```
 
-## 🛠️ Tecnologías
+## 🚀 Cómo Usar Esta Plantilla
 
-### Frontend
-- React 19
-- Vite
-- TailwindCSS 4
-- React Router DOM
-- React Hot Toast
-- jsPDF + jsPDF-AutoTable
-- Recharts
-- Vanta.js + Three.js
-
-### Backend
-- Node.js + Express
-- SQLite (better-sqlite3)
-- Multer (gestión de archivos)
-- CORS
-
-## 📦 Instalación
-
+### 1. Instalación
 ```bash
-# Instalar dependencias del frontend
-npm install
-
-# Instalar dependencias del backend
-cd backend
 npm install
 ```
 
-## 💻 Desarrollo Local
-
-### Backend
-```bash
-cd backend
-node index.js
-```
-El backend estará en `http://localhost:4000`
-
-### Frontend
+### 2. Desarrollo
 ```bash
 npm run dev
 ```
-El frontend estará en `http://localhost:5173`
 
-## 🏗️ Build para Producción
+### 3. Personalización
 
-```bash
-npm run build
-```
+#### A. Conectar tu Backend
+1. Crea tu archivo de configuración API en `src/config/api.js`
+2. Define tu `API_URL` según tu entorno
+3. Actualiza las llamadas en los componentes que necesites
 
-## 🚂 Deploy en Railway (Backend)
+#### B. Personalizar Dashboards
+- **Admin**: Edita `src/pages/admin/AdminDashboard.jsx`
+- **Técnico**: Edita `src/pages/tecnico/TecnicoHome.jsx`
+- **Distribuidor**: Edita `src/pages/distribuidor/DistribuidorHome.jsx`
+- **Cliente**: Edita `src/pages/cliente/ClienteHome.jsx`
 
-El backend está configurado para Railway con `railway.json`:
+#### C. Agregar Nuevas Páginas
+1. Crea tu componente en la carpeta correspondiente
+2. Agrega la ruta en `src/App.jsx`
+3. Agrega el enlace de navegación en el Layout correspondiente
 
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "cd backend && npm install"
-  },
-  "deploy": {
-    "startCommand": "cd backend && node index.js",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-```
+#### D. Modificar Roles
+- Edita los layouts en `src/layouts/` para cambiar la navegación
+- Actualiza las rutas en `src/App.jsx`
 
-### Pasos para deploy:
-1. Conectar repositorio a Railway
-2. Railway detectará automáticamente la configuración
-3. El backend se desplegará en: `https://focused-presence-production-6e28.up.railway.app`
+## 🎨 Tecnologías Incluidas
 
-## 📤 Deploy Frontend (Vercel)
+- ⚛️ **React 18** con Vite
+- 🎨 **TailwindCSS** (via CDN en index.html)
+- 🌊 **Vanta.js** (efectos de fondo animados)
+- 🔥 **React Hot Toast** (notificaciones)
+- 🛣️ **React Router** (navegación)
+- 🎭 **Three.js** (para Vanta backgrounds)
 
-1. Conectar repositorio a Vercel
-2. Vercel detectará automáticamente que es un proyecto Vite
-3. Deploy automático en cada push a main
+## 📝 Notas Importantes
 
-## 🔐 Credenciales por Defecto
+- ⚠️ **Autenticación**: Actualmente usa `sessionStorage` local. Implementa tu propio sistema de autenticación con tu backend.
+- 🔒 **Seguridad**: Implementa validaciones y protección de rutas según tus necesidades.
+- 📱 **Responsive**: Todos los layouts están optimizados para móvil y desktop.
 
-- **Email**: `admin@infiniguard.com`
-- **Password**: `123`
+## 🎯 Próximos Pasos Recomendados
 
-## 📊 Niveles de Madurez (Encuestas)
+1. **Configurar Backend**: Conecta tu API/Backend
+2. **Definir Modelos**: Crea tus modelos de datos
+3. **Implementar Lógica**: Agrega la lógica de negocio específica
+4. **Personalizar UI**: Adapta colores, logos y branding
+5. **Agregar Funcionalidades**: Implementa los módulos que necesites
 
-| Puntuación | Nivel | Color | Diagnóstico |
-|------------|-------|-------|-------------|
-| 0-20 | Inicial | 🔴 Rojo | Requiere atención urgente |
-| 21-40 | Básico | 🟠 Naranja | Fundamentos establecidos |
-| 41-60 | En Desarrollo | 🟡 Amarillo | Progreso significativo |
-| 61-80 | Avanzado | 🔵 Azul | Operación sólida |
-| 81-100 | Best in Class | 🟢 Verde | Excelencia operativa |
+## 📄 Licencia
 
-## 📁 Estructura del Proyecto
+Plantilla libre para uso personal y comercial.
 
-```
-InfiniguardSYS/
-├── backend/
-│   ├── index.js          # Servidor Express + SQLite
-│   ├── database.db       # Base de datos SQLite
-│   ├── uploads/          # Archivos subidos
-│   └── package.json
-├── src/
-│   ├── pages/
-│   │   └── admin/
-│   │       ├── Ajustes.jsx        # Estadísticas de encuestas
-│   │       ├── Usuarios.jsx
-│   │       ├── Servicios.jsx
-│   │       └── ...
-│   ├── config/
-│   │   └── api.js        # Configuración de API URL
-│   └── ...
-├── railway.json          # Configuración de Railway
-└── package.json
-```
+---
 
-## 🔄 Cambiar entre Local y Producción
-
-Edita `src/config/api.js`:
-
-```javascript
-// Para desarrollo local
-const API_URL = 'http://localhost:4000';
-
-// Para producción (Railway)
-const API_URL = 'https://focused-presence-production-6e28.up.railway.app';
-```
-
-## 📝 Licencia
-
-Privado - Uso interno
+**¡Listo para construir tu CRM personalizado! 🚀**

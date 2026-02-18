@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as THREE from 'three';
-import CELLS from 'vanta/dist/vanta.cells.min.js';
-import Login from './Login';
+import AnimatedGridBackground from '../../components/ui/AnimatedGridBackground';
+import updmLogo from '../../assets/UPDMLOGO4K.png';
 
 
 // URL DEL BACKEND (Ajústala si pruebas en local)
@@ -19,38 +18,9 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const vantaRef = useRef(null);
-    const vantaInstanceRef = useRef(null);
-
-    useEffect(() => {
-        // Inicialización del efecto de fondo (Vanta JS)
-        if (vantaRef.current && !vantaInstanceRef.current) {
-            try {
-                vantaInstanceRef.current = CELLS({
-                    el: vantaRef.current,
-                    THREE: THREE,
-                    mouseControls: true,
-                    touchControls: true,
-                    gyroControls: false,
-                    minHeight: 200.00,
-                    minWidth: 200.00,
-                    scale: 1.00,
-                    color1: 0x101025,
-                    color2: 0x35b1f2,
-                    size: 5.00,
-                    speed: 0.90
-                });
-            } catch (error) {
-                console.error("Error al iniciar Vanta:", error);
-            }
-        }
-        return () => {
-            if (vantaInstanceRef.current) {
-                vantaInstanceRef.current.destroy();
-                vantaInstanceRef.current = null;
-            }
-        };
-    }, []);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [acceptTerms, setAcceptTerms] = useState(false);
 
     const handleRegister = async (e) => {
         e.preventDefault();
@@ -82,34 +52,57 @@ const Register = () => {
             return;
         }
 
+        if (!email.trim()) {
+            setError('El email es requerido');
+            return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setError('El email no es valido');
+            return;
+        }
+
+        if (!acceptTerms) {
+            setError('Debes aceptar los terminos para continuar');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            const response = await fetch(`${API_URL}/api/register`, {
+            const response = await fetch(`${API_URL}/api/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, nombre: name, telefono: phone, email, password }),
+                body: JSON.stringify({
+                    usuario: username,
+                    contraseña: password,
+                    nombre: name,
+                    telefono: phone,
+                    email
+                }),
             });
 
             const data = await response.json();
 
             if (response.ok) {
                 // Login exitoso
-                sessionStorage.setItem('user', JSON.stringify(data.user));
+                const userData = data.usuario || data.user;
+                sessionStorage.setItem('user', JSON.stringify(userData));
 
                 // Redirigimos según el rol
-                const { rol } = data.user;
+                const { rol } = userData;
                 switch (rol) {
-                    case 'admin': navigate('/admin'); break;
+                    case 'prospector': navigate('/prospector'); break;
+                    case 'closer': navigate('/closer'); break;
                     case 'tecnico': navigate('/tecnico'); break;
                     case 'distribuidor': navigate('/distribuidor'); break;
                     case 'usuario': navigate('/usuario'); break;
                     default: navigate('/'); // Por seguridad
                 }
             } else {
-                setError(data.message || 'Error al registrar usuario');
+                setError(data.mensaje || data.message || 'Error al registrar usuario');
             }
         } catch (err) {
             console.error('Error:', err);
@@ -138,150 +131,216 @@ const Register = () => {
     const passwordStrength = getPasswordStrength();
 
     return (
-        <div ref={vantaRef} className="flex min-h-screen items-center justify-center text-white px-4 sm:px-6 lg:px-8">
+        <AnimatedGridBackground mode="light">
+            <div className="flex min-h-screen items-center justify-center text-slate-900 px-4 sm:px-6 lg:px-8" style={{ fontFamily: '"Space Grotesk", "Poppins", sans-serif' }}>
 
-            {/* Tarjeta con efecto Glass - Ancho MÁS GRANDE (max-w-4xl) */}
-            <div className="z-10 w-full max-w-4xl bg-black/40 backdrop-blur-lg p-8 rounded-2xl border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold tracking-wider mb-2">Infiniguard SYS</h1>
-                    <p className="text-blue-200 text-sm font-light tracking-widest uppercase">Sistema de Gestión</p>
-                </div>
-
-                <form onSubmit={handleRegister} className="space-y-6">
-
-                    {error && (
-                        <div className="bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-xl text-sm flex items-center justify-center gap-2 animate-pulse mb-6">
-                            <span>🚫</span> {error}
-                        </div>
-                    )}
-
-                    {/* GRID DE DOS COLUMNAS */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                        {/* COLUMNA IZQUIERDA: Datos Personales */}
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Nombre</label>
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                                    placeholder="Nombre completo"
-                                    required
-                                />
+                <div className="z-10 w-full max-w-6xl">
+                    <div className="grid gap-12 p-4 lg:grid-cols-2 lg:p-8">
+                        <div className="flex flex-col justify-center space-y-8 order-last lg:order-first">
+                            <div className="p-4">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100/50 bg-emerald-50/50 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-800 font-bold backdrop-blur-sm">
+                                    Crea tu cuenta
+                                </div>
+                                <div className="mt-8 flex items-center">
+                                    <img
+                                        src={updmLogo}
+                                        alt="UPDM"
+                                        className="h-32 w-auto drop-shadow-xl"
+                                    />
+                                </div>
+                                <p className="mt-6 text-lg text-slate-800 font-medium leading-relaxed drop-shadow-sm">
+                                    Registra tus datos y empieza a gestionar clientes y servicios en minutos.
+                                </p>
                             </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Usuario *</label>
-                                <input
-                                    type="text"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                                    placeholder="tu_usuario"
-                                    required
-                                />
-                                <p className="text-xs text-gray-400 mt-1 ml-1">Solo letras, números y guiones bajos</p>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Email (Opcional)</label>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                                    placeholder="correo@ejemplo.com"
-                                />
-                                <p className="text-xs text-gray-400 mt-1 ml-1">Solo para recibir notificaciones</p>
+                            <div className="p-4 text-sm text-emerald-900">
+                                <p className="font-bold text-emerald-950 flex items-center gap-2 text-base">
+                                    <span className="text-2xl">✨</span> Recomendaciones
+                                </p>
+                                <ul className="mt-2 space-y-2 text-emerald-900 font-medium">
+                                    <li>• Usa una contraseña segura con mayúsculas y números.</li>
+                                    <li>• El email es obligatorio para recuperar tu acceso.</li>
+                                    <li>• Elige un usuario corto y facil de recordar.</li>
+                                </ul>
                             </div>
                         </div>
 
-                        {/* COLUMNA DERECHA: Seguridad y Contacto */}
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Teléfono</label>
-                                <input
-                                    type="tel"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                                    placeholder="123 456 7890"
-                                />
-                            </div>
+                        <div className="p-4 lg:p-8 h-fit">
+                            <h2 className="text-4xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent drop-shadow-sm">Registro</h2>
+                            <p className="mt-3 text-base text-slate-700 font-semibold">Completa el formulario para crear tu cuenta.</p>
 
-                            <div className="pb-5">
-                                <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Contraseña</label>
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition hover:bg-white/10"
-                                    placeholder="••••••••"
-                                    required
-                                />
-                                {/* Indicador de fortaleza */}
-                                {password && (
-                                    <div className="mt-2">
-                                        <div className="flex gap-1 mb-1">
-                                            {[1, 2, 3].map((level) => (
-                                                <div
-                                                    key={level}
-                                                    className={`h-1 flex-1 rounded-full transition-all ${level <= passwordStrength.level
-                                                        ? passwordStrength.color
-                                                        : 'bg-white/10'
-                                                        }`}
-                                                ></div>
-                                            ))}
-                                        </div>
-                                        <p className="text-xs text-blue-200">
-                                            Fortaleza: <span className="font-semibold">{passwordStrength.text}</span>
-                                        </p>
+                            <form onSubmit={handleRegister} className="mt-10 space-y-8">
+
+                                {error && (
+                                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center justify-center gap-2 mb-6">
+                                        <span>🚫</span> {error}
                                     </div>
                                 )}
-                            </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-blue-200 uppercase mb-2 ml-1">Confirmar Contraseña</label>
-                                <input
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:border-transparent outline-none transition hover:bg-white/10 ${confirmPassword && password !== confirmPassword
-                                        ? 'border-red-500 focus:ring-red-500'
-                                        : 'border-white/10 focus:ring-blue-500'
-                                        }`}
-                                    placeholder="••••••••"
-                                    required
-                                />
-                                {confirmPassword && password !== confirmPassword && (
-                                    <p className="text-xs text-red-400 mt-1 ml-1">Las contraseñas no coinciden</p>
-                                )}
-                                {confirmPassword && password === confirmPassword && (
-                                    <p className="text-xs text-green-400 mt-1 ml-1">✓ Las contraseñas coinciden</p>
-                                )}
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+
+                                    {/* COLUMNA IZQUIERDA: Datos Personales */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-emerald-700 uppercase mb-2 ml-1">Nombre</label>
+                                            <input
+                                                type="text"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                autoComplete="name"
+                                                className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-slate-200/60 rounded-xl text-slate-900 placeholder-slate-500 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 focus:bg-white/80 outline-none transition-all shadow-sm"
+                                                placeholder="Nombre completo"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-emerald-700 uppercase mb-2 ml-1">Usuario *</label>
+                                            <input
+                                                type="text"
+                                                value={username}
+                                                onChange={(e) => setUsername(e.target.value)}
+                                                autoComplete="username"
+                                                className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-slate-200/60 rounded-xl text-slate-900 placeholder-slate-500 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 focus:bg-white/80 outline-none transition-all shadow-sm"
+                                                placeholder="tu_usuario"
+                                                required
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1 ml-1">Solo letras, numeros y guiones bajos</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-emerald-700 uppercase mb-2 ml-1">Email *</label>
+                                            <input
+                                                type="email"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                autoComplete="email"
+                                                className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-slate-200/60 rounded-xl text-slate-900 placeholder-slate-500 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 focus:bg-white/80 outline-none transition-all shadow-sm"
+                                                placeholder="correo@ejemplo.com"
+                                                required
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1 ml-1">Usaremos este correo para recuperar acceso</p>
+                                        </div>
+                                    </div>
+
+                                    {/* COLUMNA DERECHA: Seguridad y Contacto */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-emerald-700 uppercase mb-2 ml-1">Telefono</label>
+                                            <input
+                                                type="tel"
+                                                value={phone}
+                                                onChange={(e) => setPhone(e.target.value)}
+                                                autoComplete="tel"
+                                                className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-slate-200/60 rounded-xl text-slate-900 placeholder-slate-500 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 focus:bg-white/80 outline-none transition-all shadow-sm"
+                                                placeholder="123 456 7890"
+                                            />
+                                        </div>
+
+                                        <div className="pb-5">
+                                            <label className="block text-xs font-bold text-emerald-700 uppercase mb-2 ml-1">Contraseña</label>
+                                            <div className="flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white/50 backdrop-blur-sm px-4 py-3 focus-within:border-emerald-400 focus-within:bg-white/80 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all shadow-sm">
+                                                <input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    value={password}
+                                                    onChange={(e) => setPassword(e.target.value)}
+                                                    autoComplete="new-password"
+                                                    className="w-full bg-transparent text-slate-900 placeholder-slate-500 outline-none"
+                                                    placeholder="••••••••"
+                                                    required
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword((prev) => !prev)}
+                                                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
+                                                >
+                                                    {showPassword ? 'Ocultar' : 'Mostrar'}
+                                                </button>
+                                            </div>
+                                            {/* Indicador de fortaleza */}
+                                            {password && (
+                                                <div className="mt-2">
+                                                    <div className="flex gap-1 mb-1">
+                                                        {[1, 2, 3].map((level) => (
+                                                            <div
+                                                                key={level}
+                                                                className={`h-1 flex-1 rounded-full transition-all ${level <= passwordStrength.level
+                                                                    ? passwordStrength.color
+                                                                    : 'bg-slate-200'
+                                                                    }`}
+                                                            ></div>
+                                                        ))}
+                                                    </div>
+                                                    <p className="text-xs text-slate-600">
+                                                        Fortaleza: <span className="font-semibold">{passwordStrength.text}</span>
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-emerald-700 uppercase mb-2 ml-1">Confirmar Contraseña</label>
+                                            <div className={`flex items-center gap-2 rounded-xl border bg-white/50 backdrop-blur-sm px-4 py-3 focus-within:bg-white/80 focus-within:ring-4 transition-all shadow-sm ${confirmPassword && password !== confirmPassword
+                                                ? 'border-red-500 focus-within:ring-red-500/20'
+                                                : 'border-slate-200/60 focus-within:ring-emerald-500/10'
+                                                }`}
+                                            >
+                                                <input
+                                                    type={showConfirm ? 'text' : 'password'}
+                                                    value={confirmPassword}
+                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                    autoComplete="new-password"
+                                                    className="w-full bg-transparent text-slate-900 placeholder-slate-500 outline-none"
+                                                    placeholder="••••••••"
+                                                    required
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowConfirm((prev) => !prev)}
+                                                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
+                                                >
+                                                    {showConfirm ? 'Ocultar' : 'Mostrar'}
+                                                </button>
+                                            </div>
+                                            {confirmPassword && password !== confirmPassword && (
+                                                <p className="text-xs text-red-400 mt-1 ml-1">Las contraseñas no coinciden</p>
+                                            )}
+                                            {confirmPassword && password === confirmPassword && (
+                                                <p className="text-xs text-emerald-600 mt-1 ml-1">✓ Las contraseñas coinciden</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 pt-2">
+                                    <label className="flex items-start gap-3 text-sm text-slate-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={acceptTerms}
+                                            onChange={(e) => setAcceptTerms(e.target.checked)}
+                                            className="mt-0.5 h-4 w-4 rounded border-slate-300 bg-white text-emerald-500 focus:ring-emerald-500/20"
+                                        />
+                                        <span>
+                                            Acepto los terminos y la politica de privacidad.
+                                        </span>
+                                    </label>
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/20 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? 'Validando...' : 'CREAR CUENTA'}
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div className="mt-6 text-center">
+                                <p className="text-sm text-slate-600">¿Ya tienes una cuenta? <a href="/" className="text-emerald-700 hover:text-emerald-900 font-semibold hover:underline transition-colors">Iniciar sesion</a></p>
                             </div>
                         </div>
                     </div>
-
-                    <div className="pt-4">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-4 rounded-xl transition-all duration-300 shadow-lg transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? 'Validando...' : 'CREAR CUENTA'}
-                        </button>
-                    </div>
-                </form>
-
-                <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-400">¿Ya tienes una cuenta? <a href="/" className="text-blue-400 hover:text-blue-300 font-semibold hover:underline transition-colors">Iniciar Sesión</a></p>
                 </div>
             </div>
-        </div>
+        </AnimatedGridBackground>
     );
 };
 

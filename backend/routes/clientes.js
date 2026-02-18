@@ -1,0 +1,144 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../config/database');
+const { auth, esAdmin, esVendedor } = require('../middleware/auth');
+const { toMongoFormat } = require('../lib/helpers');
+
+router.get('/', auth, esVendedor, async (req, res) => {
+    try {
+        const { estado, busqueda } = req.query;
+        let sql = 'SELECT c.*, u.nombre as vendedorNombre FROM clientes c JOIN usuarios u ON c.vendedorAsignado = u.id WHERE 1=1';
+        const params = [];
+
+        if (req.usuario.rol === 'vendedor') {
+            sql += ' AND c.vendedorAsignado = ?';
+            params.push(parseInt(req.usuario.id));
+        }
+        if (estado) {
+            sql += ' AND c.estado = ?';
+            params.push(estado);
+        }
+        if (busqueda) {
+            sql += ' AND (c.nombres LIKE ? OR c.apellidoPaterno LIKE ? OR c.empresa LIKE ?)';
+            const like = '%' + busqueda + '%';
+            params.push(like, like, like);
+        }
+        sql += ' ORDER BY c.ultimaInteraccion DESC';
+
+        const rows = db.prepare(sql).all(...params);
+        const clientes = rows.map(r => {
+            const { vendedorNombre, ...c } = r;
+            const out = toMongoFormat(c);
+            if (out) out.vendedorAsignado = { nombre: vendedorNombre };
+            return out || c;
+        });
+        res.json(clientes);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ mensaje: 'Error del servidor' });
+    }
+});
+
+router.get('/:id', auth, esVendedor, async (req, res) => {
+    try {
+        const row = db.prepare('SELECT c.*, u.nombre as vendedorNombre FROM clientes c JOIN usuarios u ON c.vendedorAsignado = u.id WHERE c.id = ?').get(parseInt(req.params.id));
+        if (!row) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+        if (req.usuario.rol === 'vendedor' && row.vendedorAsignado !== parseInt(req.usuario.id)) {
+            return res.status(403).json({ mensaje: 'No tiene permiso' });
+        }
+        const { vendedorNombre, ...c } = row;
+        const cliente = toMongoFormat(c);
+        if (cliente) cliente.vendedorAsignado = { nombre: vendedorNombre };
+        res.json(cliente || row);
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error del servidor' });
+    }
+});
+
+router.post('/', auth, esVendedor, async (req, res) => {
+    try {
+        const { nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, estado, vendedorAsignado, etapaEmbudo } = req.body;
+        if (!nombres || !apellidoPaterno || !telefono || !correo) {
+            return res.status(400).json({ mensaje: 'Complete los campos requeridos' });
+        }
+        const vendedorId = req.usuario.rol === 'admin' && vendedorAsignado ? parseInt(vendedorAsignado) : parseInt(req.usuario.id);
+        const etapa = etapaEmbudo || 'prospecto_nuevo';
+        const now = new Date().toISOString();
+        const hist = JSON.stringify([{ etapa, fecha: now, vendedor: vendedorId }]);
+
+        db.prepare(`
+            INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, estado, etapaEmbudo, historialEmbudo, vendedorAsignado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(nombres, apellidoPaterno || '', apellidoMaterno || '', telefono, correo, empresa || '', estado || 'proceso', etapa, hist, vendedorId);
+
+        const row = db.prepare('SELECT * FROM clientes ORDER BY id DESC LIMIT 1').get();
+        res.status(201).json({ mensaje: 'Cliente creado', cliente: toMongoFormat(row) || row });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error del servidor' });
+    }
+});
+
+router.put('/:id', auth, esVendedor, async (req, res) => {
+    try {
+        const c = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        if (!c) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+        if (req.usuario.rol === 'vendedor' && c.vendedorAsignado !== parseInt(req.usuario.id)) {
+            return res.status(403).json({ mensaje: 'No tiene permiso' });
+        }
+        const { nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, estado, notas, vendedorAsignado } = req.body;
+        const updates = [];
+        const params = [];
+        if (nombres) { updates.push('nombres = ?'); params.push(nombres); }
+        if (apellidoPaterno) { updates.push('apellidoPaterno = ?'); params.push(apellidoPaterno); }
+        if (apellidoMaterno !== undefined) { updates.push('apellidoMaterno = ?'); params.push(apellidoMaterno); }
+        if (telefono) { updates.push('telefono = ?'); params.push(telefono); }
+        if (correo) { updates.push('correo = ?'); params.push(correo); }
+        if (empresa !== undefined) { updates.push('empresa = ?'); params.push(empresa); }
+        if (estado) { updates.push('estado = ?'); params.push(estado); }
+        if (notas !== undefined) { updates.push('notas = ?'); params.push(notas); }
+        if (req.usuario.rol === 'admin' && vendedorAsignado) { updates.push('vendedorAsignado = ?'); params.push(parseInt(vendedorAsignado)); }
+        updates.push('ultimaInteraccion = ?');
+        params.push(new Date().toISOString(), parseInt(req.params.id));
+        db.prepare(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+        const row = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        res.json({ mensaje: 'Cliente actualizado', cliente: toMongoFormat(row) || row });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error del servidor' });
+    }
+});
+
+router.delete('/:id', auth, esAdmin, async (req, res) => {
+    try {
+        const r = db.prepare('DELETE FROM clientes WHERE id = ?').run(parseInt(req.params.id));
+        if (r.changes === 0) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+        res.json({ mensaje: 'Cliente eliminado' });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error del servidor' });
+    }
+});
+
+router.patch('/:id/etapa', auth, esVendedor, async (req, res) => {
+    try {
+        const { etapaNueva } = req.body;
+        if (!etapaNueva) return res.status(400).json({ mensaje: 'etapaNueva requerida' });
+        const c = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        if (!c) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+        if (req.usuario.rol === 'vendedor' && c.vendedorAsignado !== parseInt(req.usuario.id)) {
+            return res.status(403).json({ mensaje: 'No tiene permiso' });
+        }
+        const now = new Date().toISOString();
+        const hist = c.historialEmbudo ? JSON.parse(c.historialEmbudo) : [];
+        hist.push({ etapa: etapaNueva, fecha: now, vendedor: parseInt(req.usuario.id) });
+        let estado = 'proceso';
+        if (etapaNueva === 'ganado') estado = 'ganado';
+        else if (etapaNueva === 'perdido') estado = 'perdido';
+        db.prepare('UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ?, estado = ? WHERE id = ?')
+            .run(etapaNueva, now, now, JSON.stringify(hist), estado, parseInt(req.params.id));
+        const row = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        res.json({ mensaje: 'Etapa actualizada', cliente: toMongoFormat(row) || row });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error del servidor' });
+    }
+});
+
+module.exports = router;

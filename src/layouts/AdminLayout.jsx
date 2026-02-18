@@ -1,52 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import * as THREE from 'three';
-import CELLS from 'vanta/dist/vanta.cells.min.js';
-import Avatar from '../components/ui/Avatar';
-import { getUser, logout } from '../utils/authUtils';
+import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import AnimatedGridBackground from '../components/ui/AnimatedGridBackground';
+import FloatingSidebar from '../components/ui/FloatingSidebar';
+import { getUser } from '../utils/authUtils';
+import logoUPDM from '../assets/UPDMLOGO4K.png';
 
 const AdminLayout = () => {
-  const location = useLocation();
-  const vantaRef = useRef(null);
-  const vantaInstanceRef = useRef(null);
   const [usuario, setUsuario] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  useEffect(() => {
-    // Cargar usuario
+  React.useEffect(() => {
     const userGuardado = getUser();
     setUsuario(userGuardado);
-    if (vantaRef.current && !vantaInstanceRef.current) {
-      try {
-        vantaInstanceRef.current = CELLS({
-          el: vantaRef.current,
-          THREE: THREE,
-          mouseControls: true,
-          touchControls: true,
-          gyroControls: false,
-          minHeight: 200.00,
-          minWidth: 200.00,
-          scale: 1.00,
-          scaleMobile: 1.00,
-          color1: 0x101025,
-          color2: 0x35b1f2,
-          size: 3.50,
-          speed: 0.90
-        });
-      } catch (error) {
-        console.error("Error al iniciar Vanta:", error);
-      }
-    }
-
-    return () => {
-      if (vantaInstanceRef.current) {
-        vantaInstanceRef.current.destroy();
-        vantaInstanceRef.current = null;
-      }
-    };
   }, []);
 
-  // Las opciones basadas en TU diagrama
   const menuItems = [
     {
       name: 'Dashboard',
@@ -58,47 +25,26 @@ const AdminLayout = () => {
       )
     },
     {
-      name: 'Solicitudes',
-      path: '/admin/cotizaciones',
+      name: 'Estadísticas',
+      path: '/admin/estadisticas',
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+          <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
         </svg>
       )
     },
     {
-      name: 'Servicios',
-      path: '/admin/servicios',
+      name: 'Vendedores',
+      path: '/admin/vendedores',
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M17.293 7.293a1 1 0 010 1.414l-8.586 8.586a2 2 0 01-2.828 0l-1.172-1.172a2 2 0 010-2.828l8.586-8.586a1 1 0 011.414 0l2.586 2.586a1 1 0 010 1.414l-1.293 1.293 1.293 1.293z" />
+          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
         </svg>
       )
     },
     {
-      name: 'Comisiones',
-      path: '/admin/comisiones',
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
-        </svg>
-      )
-    },
-    {
-      name: 'Documentos',
-      path: '/admin/documentos',
-      gap: true, // Grupo de recursos
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clipRule="evenodd" />
-        </svg>
-      )
-    },
-    {
-      name: 'Usuarios',
-      path: '/admin/usuarios',
-      gap: true, // Grupo de admin
+      name: 'Clientes',
+      path: '/admin/clientes',
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
@@ -108,6 +54,7 @@ const AdminLayout = () => {
     {
       name: 'Ajustes',
       path: '/admin/ajustes',
+      gap: true,
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
@@ -117,101 +64,27 @@ const AdminLayout = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <AnimatedGridBackground>
+      <div className="h-screen flex p-4 gap-4">
+        {/* Floating Sidebar */}
+        <FloatingSidebar
+          menuItems={menuItems}
+          userInfo={{ ...usuario, rol: 'Admin' }}
+          title="UPDM"
+          logo={logoUPDM}
+          onCollapseChange={setSidebarCollapsed}
+        />
 
-      {/* 1. SIDEBAR (Barra Lateral) con Vanta.js */}
-      <aside
-        ref={vantaRef}
-        className={`fixed inset-y-0 left-0 z-50 w-64 md:relative md:flex flex-col transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} overflow-hidden shadow-2xl md:shadow-none bg-gradient-to-b from-blue-900 to-blue-800`}
-      >
-
-        {/* Overlay para mejorar legibilidad */}
-        <div className="absolute inset-0 bg-linear-to-b from-blue-950 via-transparent to-blue-950 bg-opacity-40 pointer-events-none z-0"></div>
-
-        {/* Contenido del sidebar */}
-        <div className="relative z-10 flex flex-col h-full">
-          {/* Logo o Título */}
-          <div className="h-16 flex items-center justify-center mb-2">
-            <h2 className="text-xl font-bold text-white tracking-wide drop-shadow-[0_2px_8px_rgba(37,99,235,0.5)]">INFINIGUARD ADMIN</h2>
+        {/* Contenido flotante - Se adapta al sidebar */}
+        <main
+          className="flex-1 backdrop-blur-xs border border-gray-700/30 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300"
+        >
+          <div className="h-full overflow-y-auto p-6 scrollbar-hide">
+            <Outlet />
           </div>
-
-          {/* Perfil del Usuario */}
-          {usuario && (
-            <div className="px-4 py-3 mb-2">
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-3 flex items-center gap-3 shadow-lg">
-                <Avatar name={usuario.nombre} size="md" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">{usuario.nombre}</p>
-                  <p className="text-blue-200 text-xs truncate">{usuario.username ? `@${usuario.username}` : usuario.email}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Menú de Navegación */}
-          <nav className="flex-1 overflow-y-auto py-4">
-            <ul className="space-y-1 px-2">
-              {menuItems.map((item) => (
-                <li key={item.name} className={item.gap ? 'mt-2 pt-2 border-t border-white/10' : ''}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${location.pathname === item.path
-                      ? 'bg-white/10 backdrop-blur-md text-white font-semibold shadow-lg shadow-blue-500/30 border border-white/20'
-                      : 'text-blue-100 hover:bg-white/5 hover:backdrop-blur-sm hover:text-white'
-                      }`}
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-        </div>
-      </aside>
-
-      {/* 2. ÁREA DE CONTENIDO (Aquí cambia lo que ves) */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <header className="h-16 bg-white shrink-0 shadow-sm flex items-center justify-between px-6 md:hidden">
-          {/* Header móvil funcional */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 -ml-2 text-gray-600 hover:text-blue-600 transition-colors"
-              aria-label="Toggle menu"
-            >
-              {sidebarOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
-            <span className="font-bold text-gray-800 tracking-tight">INFINIGUARD ADMIN</span>
-          </div>
-
-          {usuario && <Avatar name={usuario.nombre} size="sm" />}
-        </header>
-
-        {/* Overlay para móvil */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          ></div>
-        )}
-
-        <div className="flex-1 p-4 lg:p-8 overflow-auto flex flex-col min-h-0">
-          {/* <Outlet /> es el hueco donde se renderiza la página hija (ej. DashboardAdmin) */}
-          <Outlet />
-        </div>
-      </main>
-
-    </div>
+        </main>
+      </div>
+    </AnimatedGridBackground>
   );
 };
 

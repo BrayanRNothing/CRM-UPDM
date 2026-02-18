@@ -119,6 +119,8 @@ function ModalUsuario({ modoEdicion, formData, setFormData, handleSubmit, cerrar
               <option value="tecnico" className="bg-gray-800">Técnico</option>
               <option value="distribuidor" className="bg-gray-800">Distribuidor</option>
               <option value="usuario" className="bg-gray-800">Usuario</option>
+              <option value="closer" className="bg-gray-800">Closer</option>
+              <option value="prospector" className="bg-gray-800">Prospector</option>
             </select>
           </div>
           <div className="flex gap-3 mt-6">
