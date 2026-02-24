@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 // Inicializar base de datos
 require('./config/database');
@@ -40,8 +41,8 @@ app.use('/api/closer', require('./routes/closer'));
 app.use('/api/closer/prospectors', require('./routes/prospector-monitoring'));
 app.use('/api/google', require('./routes/google'));
 
-// Ruta de prueba
-app.get('/', (req, res) => {
+// Ruta de prueba API
+app.get('/api', (req, res) => {
     res.json({ 
         mensaje: '🚀 API CRM Infiniguard SYS funcionando correctamente',
         env: process.env.NODE_ENV || 'development',
@@ -54,9 +55,17 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-// Manejo de errores 404
-app.use((req, res) => {
-    res.status(404).json({ mensaje: 'Ruta no encontrada' });
+// ✅ SERVIR ARCHIVOS ESTÁTICOS DEL FRONTEND (React compilado)
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// ✅ FALLBACK PARA SPA REACT - Cualquier ruta que no sea /api redirige a index.html
+app.get('*', (req, res) => {
+    // No servir para rutas /api
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ mensaje: 'Ruta API no encontrada' });
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Manejo de errores global
