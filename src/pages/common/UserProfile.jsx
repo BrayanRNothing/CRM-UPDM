@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import AnimatedGridBackground from '../components/ui/AnimatedGridBackground';
+import AnimatedGridBackground from '../../components/ui/AnimatedGridBackground';
 import { ChevronLeft, User, Phone, Mail, BadgeCheck, Shield } from 'lucide-react';
-import { getUser } from '../utils/authUtils';
+import { getUser } from '../../utils/authUtils';
 import toast from 'react-hot-toast';
 
 const UserProfile = () => {
