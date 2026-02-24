@@ -3,7 +3,12 @@
  * Soporta SQLite (desarrollo) y PostgreSQL (producción)
  */
 
-const isProd = process.env.NODE_ENV === 'production';
+// Asegurar que NODE_ENV tenga un valor apropiado
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProd = nodeEnv === 'production';
+
+console.log(`📡 Modo: ${nodeEnv}`);
+console.log(`DATABASE_URL definida: ${!!process.env.DATABASE_URL}`);
 
 let db = null;
 

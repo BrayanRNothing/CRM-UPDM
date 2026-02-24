@@ -3,7 +3,12 @@
  * Soporta SQLite (desarrollo) y PostgreSQL (producción)
  */
 
-const isProd = process.env.NODE_ENV === 'production';
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProd = nodeEnv === 'production';
+
+console.log(`\n🔧 Inicializando base de datos...`);
+console.log(`   Modo: ${nodeEnv.toUpperCase()}`);
+console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada' : 'No configurada'}`);
 
 if (!isProd) {
     // Inicializar SQLite para desarrollo
@@ -117,11 +122,11 @@ if (!isProd) {
       db.exec(`ALTER TABLE clientes ADD COLUMN proximaLlamada TEXT;`);
     } catch (error) { }
 
-    console.log('✅ SQLite conectado:', dbPath);
+    console.log(`✅ SQLite conectado: ${dbPath}\n`);
     module.exports = db;
 } else {
     // PostgreSQL en producción
-    console.log('📊 Usando PostgreSQL - Schema se inicializa automáticamente');
+    console.log('📊 PostgreSQL - Schema inicializado automáticamente\n');
     
     // Importar el wrapper de abstracción que ya conectó a PostgreSQL
     const dbWrapper = require('../lib/db');
