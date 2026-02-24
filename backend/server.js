@@ -7,17 +7,22 @@ require('./config/database');
 
 const app = express();
 
-// Configurar CORS - Permitir todos para producción
-const corsOptions = {
-    origin: '*', // Temporalmente permitir todos para debug
-    credentials: false,
-    optionsSuccessStatus: 200,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-};
+// ✅ CORS HANDLER - DEBE SER LO PRIMERO
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    // Preflight
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    
+    next();
+});
 
-// Middleware
-app.use(cors(corsOptions));
+// Middleware CORS adicional
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
