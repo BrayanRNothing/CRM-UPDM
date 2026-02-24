@@ -7,30 +7,10 @@ require('./config/database');
 
 const app = express();
 
-// Configurar CORS explícitamente
-const allowedOrigins = [
-    'https://crm-updm-8q9atclbe-brayanrnothings-projects.vercel.app',
-    'https://crm-updm-git-main-brayanrnothings-projects.vercel.app',
-    'https://crm-updm.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:5000'
-];
-
+// Configurar CORS - Permitir todos para producción
 const corsOptions = {
-    origin: function(origin, callback) {
-        // Permitir requests sin origin (mobile apps, curl requests, etc.)
-        // Permitir localhost y cualquier subdomain de vercel.app
-        if (!origin || 
-            allowedOrigins.includes(origin) || 
-            origin.includes('vercel.app') ||
-            origin.includes('localhost')) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
+    origin: '*', // Temporalmente permitir todos para debug
+    credentials: false,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
