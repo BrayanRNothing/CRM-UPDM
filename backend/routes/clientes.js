@@ -1,19 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { auth, esAdmin, esVendedor } = require('../middleware/auth');
+const { auth, esSuperUser } = require('../middleware/auth');
 const { toMongoFormat } = require('../lib/helpers');
 
-router.get('/', auth, esVendedor, async (req, res) => {
+router.get('/', auth, esSuperUser, async (req, res) => {
     try {
         const { estado, busqueda } = req.query;
         let sql = 'SELECT c.*, u.nombre as vendedorNombre FROM clientes c JOIN usuarios u ON c.vendedorAsignado = u.id WHERE 1=1';
         const params = [];
 
-        if (req.usuario.rol === 'vendedor') {
-            sql += ' AND c.vendedorAsignado = ?';
-            params.push(parseInt(req.usuario.id));
-        }
+        // Removed specific vendor check
         if (estado) {
             sql += ' AND c.estado = ?';
             params.push(estado);
@@ -39,7 +36,7 @@ router.get('/', auth, esVendedor, async (req, res) => {
     }
 });
 
-router.get('/:id', auth, esVendedor, async (req, res) => {
+router.get('/:id', auth, esSuperUser, async (req, res) => {
     try {
         const row = db.prepare('SELECT c.*, u.nombre as vendedorNombre FROM clientes c JOIN usuarios u ON c.vendedorAsignado = u.id WHERE c.id = ?').get(parseInt(req.params.id));
         if (!row) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
@@ -55,7 +52,7 @@ router.get('/:id', auth, esVendedor, async (req, res) => {
     }
 });
 
-router.post('/', auth, esVendedor, async (req, res) => {
+router.post('/', auth, esSuperUser, async (req, res) => {
     try {
         const { nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, estado, vendedorAsignado, etapaEmbudo } = req.body;
         if (!nombres || !apellidoPaterno || !telefono || !correo) {
@@ -78,7 +75,7 @@ router.post('/', auth, esVendedor, async (req, res) => {
     }
 });
 
-router.put('/:id', auth, esVendedor, async (req, res) => {
+router.put('/:id', auth, esSuperUser, async (req, res) => {
     try {
         const c = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
         if (!c) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
@@ -107,7 +104,7 @@ router.put('/:id', auth, esVendedor, async (req, res) => {
     }
 });
 
-router.delete('/:id', auth, esAdmin, async (req, res) => {
+router.delete('/:id', auth, esSuperUser, async (req, res) => {
     try {
         const r = db.prepare('DELETE FROM clientes WHERE id = ?').run(parseInt(req.params.id));
         if (r.changes === 0) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
@@ -117,7 +114,7 @@ router.delete('/:id', auth, esAdmin, async (req, res) => {
     }
 });
 
-router.patch('/:id/etapa', auth, esVendedor, async (req, res) => {
+router.patch('/:id/etapa', auth, esSuperUser, async (req, res) => {
     try {
         const { etapaNueva } = req.body;
         if (!etapaNueva) return res.status(400).json({ mensaje: 'etapaNueva requerida' });

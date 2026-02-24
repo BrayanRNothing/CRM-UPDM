@@ -4,7 +4,7 @@ const db = require('../config/database');
 const { auth } = require('../middleware/auth');
 
 const esCloserOAdmin = (req, res, next) => {
-    if (req.usuario.rol !== 'closer' && req.usuario.rol !== 'admin') {
+    if (req.usuario.rol !== 'closer') {
         return res.status(403).json({ msg: 'Acceso denegado. Solo closers.' });
     }
     next();

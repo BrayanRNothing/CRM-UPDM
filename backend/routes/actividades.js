@@ -1,18 +1,133 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { auth, esVendedor } = require('../middleware/auth');
+const { auth, esSuperUser } = require('../middleware/auth');
 const { toMongoFormat } = require('../lib/helpers');
 
-router.get('/', auth, esVendedor, async (req, res) => {
+// GET /api/actividades/cliente/:clienteId/historial-completo
+// Nuevo: obtener historial COMPLETO de un cliente incluyendo etapas y actividades
+router.get('/cliente/:clienteId/historial-completo', auth, async (req, res) => {
+    try {
+        const clienteId = parseInt(req.params.clienteId);
+        const usuarioId = parseInt(req.usuario.id);
+        
+        // Obtener cliente
+        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(clienteId);
+        if (!cliente) {
+            return res.status(404).json({ msg: 'Cliente no encontrado' });
+        }
+        
+        // Validar permisos: prospector, closer asignado o admin
+        const rol = String(req.usuario.rol).toLowerCase();
+        const esProspectorAsignado = cliente.prospectorAsignado === usuarioId && rol === 'prospector';
+        const esCloserAsignado = cliente.closerAsignado === usuarioId && rol === 'closer';
+        const esSuperUser = rol === 'admin' || rol === 'superuser';
+        
+        if (!esProspectorAsignado && !esCloserAsignado && !esSuperUser) {
+            return res.status(403).json({ msg: 'No tienes permiso para ver este historial' });
+        }
+        
+        // Obtener TODAS las actividades con información del vendedor
+        const actividades = db.prepare(`
+            SELECT a.*, u.nombre as vendedorNombre, u.rol as vendedorRol
+            FROM actividades a
+            LEFT JOIN usuarios u ON a.vendedor = u.id
+            WHERE a.cliente = ?
+            ORDER BY a.fecha ASC
+        `).all(clienteId);
+        
+        // Obtener historial del embudo
+        let historialEmbudo = [];
+        if (cliente.historialEmbudo) {
+            try {
+                historialEmbudo = JSON.parse(cliente.historialEmbudo);
+            } catch (e) {
+                console.error('Error al parsear historialEmbudo:', e);
+            }
+        }
+        
+        // Construir timeline completo
+        const timeline = [];
+        
+        // Agregar cambios de etapa
+        historialEmbudo.forEach(h => {
+            timeline.push({
+                tipo: 'cambio_etapa',
+                etapa: h.etapa,
+                fecha: h.fecha,
+                vendedorId: h.vendedor,
+                descripcion: h.descripcion || `Cambio a etapa: ${h.etapa}`,
+                resultado: h.resultado || null,
+                timestamp: new Date(h.fecha).getTime()
+            });
+        });
+        
+        // Agregar actividades
+        actividades.forEach(a => {
+            timeline.push({
+                tipo: 'actividad',
+                id: a.id,
+                tipoActividad: a.tipo,
+                fecha: a.fecha,
+                vendedorId: a.vendedor,
+                vendedorNombre: a.vendedorNombre || 'Desconocido',
+                vendedorRol: a.vendedorRol || 'vendedor',
+                descripcion: a.descripcion,
+                resultado: a.resultado,
+                notas: a.notas,
+                timestamp: new Date(a.fecha).getTime()
+            });
+        });
+        
+        // Ordenar por fecha
+        timeline.sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Obtener información de prospector y closer
+        let prospectorInfo = null;
+        let closerInfo = null;
+        
+        if (cliente.prospectorAsignado) {
+            const p = db.prepare('SELECT id, nombre, email FROM usuarios WHERE id = ?').get(cliente.prospectorAsignado);
+            if (p) prospectorInfo = { id: p.id, nombre: p.nombre, email: p.email };
+        }
+        
+        if (cliente.closerAsignado) {
+            const c = db.prepare('SELECT id, nombre, email FROM usuarios WHERE id = ?').get(cliente.closerAsignado);
+            if (c) closerInfo = { id: c.id, nombre: c.nombre, email: c.email };
+        }
+        
+        res.json({
+            cliente: toMongoFormat(cliente) || cliente,
+            timeline,
+            resumen: {
+                totalActividades: actividades.length,
+                totalCambiosEtapa: historialEmbudo.length,
+                etapaActual: cliente.etapaEmbudo,
+                ultimaInteraccion: cliente.ultimaInteraccion,
+                fechaRegistro: cliente.fechaRegistro,
+                prospectorAsignado: prospectorInfo,
+                closerAsignado: closerInfo,
+                vendedoresInvolucrados: [...new Set([
+                    ...actividades.map(a => a.vendedorNombre).filter(Boolean),
+                    ...historialEmbudo.map(h => {
+                        const user = db.prepare('SELECT nombre FROM usuarios WHERE id = ?').get(h.vendedor);
+                        return user?.nombre;
+                    }).filter(Boolean)
+                ])]
+            }
+        });
+    } catch (error) {
+        console.error('Error al obtener historial completo:', error);
+        res.status(500).json({ msg: 'Error del servidor' });
+    }
+});
+
+router.get('/', auth, esSuperUser, async (req, res) => {
     try {
         let sql = `SELECT a.*, v.nombre as vendedorNombre, c.nombres as c_nombres, c.apellidoPaterno as c_apellido, c.empresa as c_empresa
             FROM actividades a JOIN usuarios v ON a.vendedor = v.id JOIN clientes c ON a.cliente = c.id WHERE 1=1`;
         const params = [];
-        if (req.usuario.rol === 'vendedor') {
-            sql += ' AND a.vendedor = ?';
-            params.push(parseInt(req.usuario.id));
-        }
+        // Removed vendor role check
         if (req.query.tipo) {
             sql += ' AND a.tipo = ?';
             params.push(req.query.tipo);
@@ -34,7 +149,7 @@ router.get('/', auth, esVendedor, async (req, res) => {
     }
 });
 
-router.post('/', auth, esVendedor, async (req, res) => {
+router.post('/', auth, esSuperUser, async (req, res) => {
     try {
         const { tipo, cliente, descripcion, resultado, notas } = req.body;
         if (!tipo || !cliente) return res.status(400).json({ mensaje: 'Tipo y cliente requeridos' });
@@ -54,7 +169,7 @@ router.post('/', auth, esVendedor, async (req, res) => {
     }
 });
 
-router.put('/:id', auth, esVendedor, async (req, res) => {
+router.put('/:id', auth, esSuperUser, async (req, res) => {
     try {
         const a = db.prepare('SELECT * FROM actividades WHERE id = ?').get(parseInt(req.params.id));
         if (!a) return res.status(404).json({ mensaje: 'Actividad no encontrada' });

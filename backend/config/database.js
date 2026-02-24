@@ -13,12 +13,15 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario TEXT UNIQUE NOT NULL,
     contraseña TEXT NOT NULL,
-    rol TEXT NOT NULL CHECK(rol IN ('admin','vendedor','prospector','closer')),
+    rol TEXT NOT NULL CHECK(rol IN ('prospector','closer')),
     nombre TEXT NOT NULL,
     email TEXT,
     telefono TEXT,
     activo INTEGER DEFAULT 1,
-    fechaCreacion TEXT DEFAULT (datetime('now'))
+    fechaCreacion TEXT DEFAULT (datetime('now')),
+    googleRefreshToken TEXT,
+    googleAccessToken TEXT,
+    googleTokenExpiry REAL
   );
 
   CREATE TABLE IF NOT EXISTS clientes (
@@ -39,7 +42,9 @@ db.exec(`
     vendedorAsignado INTEGER NOT NULL REFERENCES usuarios(id),
     fechaRegistro TEXT DEFAULT (datetime('now')),
     ultimaInteraccion TEXT DEFAULT (datetime('now')),
-    notas TEXT
+    notas TEXT,
+    interes INTEGER DEFAULT 0,
+    proximaLlamada TEXT
   );
 
   CREATE TABLE IF NOT EXISTS actividades (
@@ -85,6 +90,23 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_actividades_fecha ON actividades(fecha);
   CREATE INDEX IF NOT EXISTS idx_actividades_cliente ON actividades(cliente);
 `);
+
+// Add new columns if they don't exist in existing DB
+try {
+  db.exec(`
+        ALTER TABLE usuarios ADD COLUMN googleRefreshToken TEXT;
+        ALTER TABLE usuarios ADD COLUMN googleAccessToken TEXT;
+        ALTER TABLE usuarios ADD COLUMN googleTokenExpiry REAL;
+    `);
+} catch (error) { }
+
+try {
+  db.exec(`ALTER TABLE clientes ADD COLUMN interes INTEGER DEFAULT 0;`);
+} catch (error) { }
+
+try {
+  db.exec(`ALTER TABLE clientes ADD COLUMN proximaLlamada TEXT;`);
+} catch (error) { }
 
 console.log('✅ SQLite conectado:', dbPath);
 

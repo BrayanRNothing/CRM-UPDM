@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Phone, Calendar, TrendingUp, RefreshCw, Activity, Target, AlertCircle, CheckCircle2, X, ChevronRight } from 'lucide-react';
+import { Users, Phone, Calendar, TrendingUp, RefreshCw, Activity, Target, AlertCircle, CheckCircle2, X, ChevronRight, BarChart3, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -10,6 +10,7 @@ const CloserMonitoreoProspectors = () => {
     const [periodo, setPeriodo] = useState('diario');
     const [usandoMock, setUsandoMock] = useState(false);
     const [selectedProspector, setSelectedProspector] = useState(null);
+    const [viewMode, setViewMode] = useState('cards'); // 'cards' o 'table'
 
     const mockData = {
         periodo: 'diario',
@@ -132,6 +133,212 @@ const CloserMonitoreoProspectors = () => {
         );
     }
 
+    // Si hay un prospector seleccionado, mostrar vista de detalles expandida
+    if (selectedProspector) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+                <div className="max-w-7xl mx-auto">
+                    {/* Header Expandido */}
+                    <div className={`${
+                        selectedProspector.rendimiento.color === 'green' ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200' :
+                        selectedProspector.rendimiento.color === 'yellow' ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200' :
+                        selectedProspector.rendimiento.color === 'orange' ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200' :
+                        'bg-gradient-to-r from-red-50 to-red-100 border-red-200'
+                    } border rounded-xl p-4 mb-4`}>
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md border-3 border-white flex-shrink-0">
+                                        <Users className="w-7 h-7 text-gray-400" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h1 className="text-2xl font-bold text-gray-900 truncate">{selectedProspector.prospector.nombre}</h1>
+                                        <p className="text-gray-600 text-xs truncate">{selectedProspector.prospector.correo}</p>
+                                    </div>
+                                </div>
+                                <div className={`inline-flex items-center gap-1.5 px-3 py-1 ${
+                                    selectedProspector.rendimiento.color === 'green' ? 'bg-green-500 text-white' :
+                                    selectedProspector.rendimiento.color === 'yellow' ? 'bg-yellow-500 text-white' :
+                                    selectedProspector.rendimiento.color === 'orange' ? 'bg-orange-500 text-white' :
+                                    'bg-red-500 text-white'
+                                } rounded-full text-xs font-bold shadow-md`}>
+                                    {getEstadoIcon(selectedProspector.rendimiento.estado)}
+                                    <span className="capitalize">{selectedProspector.rendimiento.estado.toUpperCase()}</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedProspector(null)}
+                                className="p-2 hover:bg-white rounded-full transition-all shadow-md flex-shrink-0"
+                            >
+                                <X className="w-5 h-5 text-gray-700" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Contenido Grid Compacto */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Columna Izquierda - Métricas Principales */}
+                        <div className="lg:col-span-2 space-y-4">
+                            {/* Métricas Rápidas - 2x2 */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Phone className="w-5 h-5 text-blue-600" />
+                                        <span className="text-xs font-semibold text-blue-700 bg-white px-2 py-0.5 rounded-full">HOY</span>
+                                    </div>
+                                    <p className="text-3xl font-bold text-gray-900">3<span className="text-lg text-gray-500">/12</span></p>
+                                    <p className="text-xs text-blue-700 mt-1">Llamadas realizadas</p>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Calendar className="w-5 h-5 text-green-600" />
+                                        <span className="text-xs font-semibold text-green-700 bg-white px-2 py-0.5 rounded-full">HOY</span>
+                                    </div>
+                                    <p className="text-3xl font-bold text-gray-900">1<span className="text-lg text-gray-500">/2</span></p>
+                                    <p className="text-xs text-green-700 mt-1">Citas agendadas</p>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Users className="w-5 h-5 text-purple-600" />
+                                        <span className="text-xs font-semibold text-purple-700 bg-white px-2 py-0.5 rounded-full">HOY</span>
+                                    </div>
+                                    <p className="text-3xl font-bold text-gray-900">5<span className="text-lg text-gray-500">/8</span></p>
+                                    <p className="text-xs text-purple-700 mt-1">Prospectos contactados</p>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Target className="w-5 h-5 text-orange-600" />
+                                        <span className="text-xs font-semibold text-orange-700 bg-white px-2 py-0.5 rounded-full">HOY</span>
+                                    </div>
+                                    <p className="text-3xl font-bold text-gray-900">{(5/8*100).toFixed(0)}<span className="text-lg text-gray-500">%</span></p>
+                                    <p className="text-xs text-orange-700 mt-1">Tasa de contacto</p>
+                                </div>
+                            </div>
+
+                            {/* Tasas de Conversión de Hoy */}
+                            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                    <TrendingUp className="w-4 h-4 text-blue-600" />
+                                    Metas de Hoy
+                                </h3>
+                                <div className="space-y-2">
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs font-semibold text-gray-700">Contactos</span>
+                                            <span className="text-lg font-bold text-blue-600">5/8</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500"
+                                                style={{ width: `${(5/8)*100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs font-semibold text-gray-700">Citas Agendadas</span>
+                                            <span className="text-lg font-bold text-purple-600">1/2</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full transition-all duration-500"
+                                                style={{ width: `${(1/2)*100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Columna Derecha - Distribución y Recomendaciones */}
+                        <div className="space-y-4">
+                            {/* Distribución del Embudo */}
+                            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                    <BarChart3 className="w-4 h-4 text-green-600" />
+                                    Estado Hoy
+                                </h3>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between p-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                                        <div>
+                                            <p className="text-xs text-blue-700 font-semibold">En Inicio</p>
+                                            <p className="text-xl font-bold text-blue-900">3</p>
+                                        </div>
+                                        <div className="text-xl">📍</div>
+                                    </div>
+                                    <div className="flex items-center justify-between p-2 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200">
+                                        <div>
+                                            <p className="text-xs text-yellow-700 font-semibold">En Llamadas</p>
+                                            <p className="text-xl font-bold text-yellow-900">2</p>
+                                        </div>
+                                        <div className="text-xl">📞</div>
+                                    </div>
+                                    <div className="flex items-center justify-between p-2 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
+                                        <div>
+                                            <p className="text-xs text-green-700 font-semibold">Conversiones</p>
+                                            <p className="text-xl font-bold text-green-900">1</p>
+                                        </div>
+                                        <div className="text-xl">✓</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Recomendaciones */}
+                            <div className={`${
+                                selectedProspector.rendimiento.color === 'green' ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-200' :
+                                selectedProspector.rendimiento.color === 'yellow' ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200' :
+                                selectedProspector.rendimiento.color === 'orange' ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200' :
+                                'bg-gradient-to-br from-red-50 to-red-100 border-red-200'
+                            } border rounded-lg p-4 shadow-sm`}>
+                                <h4 className={`text-xs font-bold mb-2 flex items-center gap-1 ${
+                                    selectedProspector.rendimiento.color === 'green' ? 'text-green-700' :
+                                    selectedProspector.rendimiento.color === 'yellow' ? 'text-yellow-700' :
+                                    selectedProspector.rendimiento.color === 'orange' ? 'text-orange-700' :
+                                    'text-red-700'
+                                }`}>
+                                    <AlertCircle className="w-3 h-3" />
+                                    Estado de Hoy
+                                </h4>
+                                
+                                {(5/8) >= 0.75 && (
+                                    <div className="text-xs text-green-700 space-y-1 font-semibold">
+                                        <p>✓ Lleva buen ritmo</p>
+                                        <p>✓ Continúa así</p>
+                                    </div>
+                                )}
+                                {(5/8) >= 0.5 && (5/8) < 0.75 && (
+                                    <div className="text-xs text-yellow-700 space-y-1 font-semibold">
+                                        <p>→ Va por buen camino</p>
+                                        <p>→ Intensifica contactos</p>
+                                    </div>
+                                )}
+                                {(5/8) < 0.5 && (
+                                    <div className="text-xs text-orange-700 space-y-1 font-semibold">
+                                        <p>⚠ Necesita acelerar</p>
+                                        <p>⚠ 3 contactos más</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Botón Cerrar */}
+                    <div className="flex justify-center mt-4">
+                        <button
+                            onClick={() => setSelectedProspector(null)}
+                            className="px-6 py-2 bg-gray-700 hover:bg-gray-800 text-white font-semibold rounded-lg transition-all shadow-md text-sm"
+                        >
+                            ← Volver al Monitoreo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen p-6">
             <div className="max-w-7xl mx-auto space-y-6">
@@ -151,13 +358,29 @@ const CloserMonitoreoProspectors = () => {
                             )}
                         </p>
                     </div>
-                    <button
-                        onClick={cargarDatos}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 shadow-md"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                        Actualizar
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <div className="flex rounded-lg border border-gray-300 shadow-sm">
+                            <button
+                                onClick={() => setViewMode('cards')}
+                                className={`px-4 py-2 transition-colors ${viewMode === 'cards' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                            >
+                                <Eye className="w-4 h-4 inline mr-1" /> Vista
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`px-4 py-2 transition-colors border-l border-gray-300 ${viewMode === 'table' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                            >
+                                <BarChart3 className="w-4 h-4 inline mr-1" /> Tabla
+                            </button>
+                        </div>
+                        <button
+                            onClick={cargarDatos}
+                            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 shadow-md"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            Actualizar
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filtros de Período */}
@@ -228,186 +451,120 @@ const CloserMonitoreoProspectors = () => {
                 </div>
 
                 {/* Grid de Prospectors - COMPACT */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {data.prospectors.map((item) => {
-                        const colorClasses = getColorClasses(item.rendimiento.color);
+                {viewMode === 'cards' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {data.prospectors.map((item) => {
+                            const colorClasses = getColorClasses(item.rendimiento.color);
 
-                        return (
-                            <div
-                                key={item.prospector.id}
-                                className={`${colorClasses.bg} border ${colorClasses.border} rounded-xl p-4 transition-all hover:shadow-lg cursor-pointer`}
-                                onClick={() => setSelectedProspector(item)}
-                            >
-                                {/* Header Compacto */}
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-lg font-bold text-gray-900 truncate">{item.prospector.nombre}</h3>
-                                        <p className="text-gray-600 text-xs truncate">{item.prospector.correo}</p>
-                                    </div>
-                                    <div className={`flex items-center gap-1 px-2 py-1 ${colorClasses.badge} rounded-lg shadow-sm ml-2 flex-shrink-0`}>
-                                        {getEstadoIcon(item.rendimiento.estado)}
-                                        <span className="font-semibold capitalize text-xs">{item.rendimiento.estado}</span>
-                                    </div>
-                                </div>
-
-                                {/* Métricas Rápidas */}
-                                <div className="grid grid-cols-3 gap-2 mb-3">
-                                    <div className="text-center">
-                                        <p className="text-xl font-bold text-gray-900">{item.metricas.llamadas.total}</p>
-                                        <p className="text-xs text-gray-600">Llamadas</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-xl font-bold text-gray-900">{item.metricas.citas.agendadas}</p>
-                                        <p className="text-xs text-gray-600">Citas</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-xl font-bold text-gray-900">{item.metricas.tasas.contacto}%</p>
-                                        <p className="text-xs text-gray-600">Contacto</p>
-                                    </div>
-                                </div>
-
-                                {/* Botón Ver Detalles */}
-                                <button
-                                    className="w-full bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedProspector(item);
-                                    }}
+                            return (
+                                <div
+                                    key={item.prospector.id}
+                                    className={`${colorClasses.bg} border ${colorClasses.border} rounded-xl p-4 transition-all hover:shadow-lg cursor-pointer`}
+                                    onClick={() => setSelectedProspector(item)}
                                 >
-                                    Ver Detalles
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
+                                    {/* Header Compacto */}
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-lg font-bold text-gray-900 truncate">{item.prospector.nombre}</h3>
+                                            <p className="text-gray-600 text-xs truncate">{item.prospector.correo}</p>
+                                        </div>
+                                        <div className={`flex items-center gap-1 px-2 py-1 ${colorClasses.badge} rounded-lg shadow-sm ml-2 flex-shrink-0`}>
+                                            {getEstadoIcon(item.rendimiento.estado)}
+                                            <span className="font-semibold capitalize text-xs">{item.rendimiento.estado}</span>
+                                        </div>
+                                    </div>
 
-            {/* Slide-Over Panel para Detalles */}
-            {selectedProspector && (
-                <div className="fixed inset-0 z-50 overflow-hidden">
-                    {/* Overlay */}
-                    <div
-                        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
-                        onClick={() => setSelectedProspector(null)}
-                    ></div>
+                                    {/* Métricas Rápidas */}
+                                    <div className="grid grid-cols-3 gap-2 mb-3">
+                                        <div className="text-center">
+                                            <p className="text-xl font-bold text-gray-900">{item.metricas.llamadas.total}</p>
+                                            <p className="text-xs text-gray-600">Llamadas</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xl font-bold text-gray-900">{item.metricas.citas.agendadas}</p>
+                                            <p className="text-xs text-gray-600">Citas</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xl font-bold text-gray-900">{item.metricas.tasas.contacto}%</p>
+                                            <p className="text-xs text-gray-600">Contacto</p>
+                                        </div>
+                                    </div>
 
-                    {/* Panel */}
-                    <div className="absolute inset-y-0 right-0 max-w-2xl w-full bg-white shadow-2xl flex flex-col">
-                        {/* Header del Panel */}
-                        <div className={`${getColorClasses(selectedProspector.rendimiento.color).bg} border-b ${getColorClasses(selectedProspector.rendimiento.color).border} p-6`}>
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <h2 className="text-2xl font-bold text-gray-900">{selectedProspector.prospector.nombre}</h2>
-                                    <p className="text-gray-600 text-sm mt-1">{selectedProspector.prospector.correo}</p>
+                                    {/* Botón Ver Detalles */}
+                                    <button
+                                        className="w-full bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedProspector(item);
+                                        }}
+                                    >
+                                        Ver Detalles
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => setSelectedProspector(null)}
-                                    className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                                >
-                                    <X className="w-6 h-6 text-gray-700" />
-                                </button>
-                            </div>
-                            <div className={`inline-flex items-center gap-2 px-3 py-1 ${getColorClasses(selectedProspector.rendimiento.color).badge} rounded-lg shadow-sm mt-3`}>
-                                {getEstadoIcon(selectedProspector.rendimiento.estado)}
-                                <span className="font-semibold capitalize">{selectedProspector.rendimiento.estado}</span>
-                            </div>
-                        </div>
-
-                        {/* Contenido del Panel */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                            {/* Métricas Principales */}
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Métricas Principales</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Phone className="w-5 h-5 text-blue-600" />
-                                            <span className="text-gray-600 text-sm font-medium">Llamadas</span>
-                                        </div>
-                                        <p className="text-3xl font-bold text-gray-900">{selectedProspector.metricas.llamadas.total}</p>
-                                        <p className="text-sm text-blue-600 mt-1">{selectedProspector.metricas.llamadas.exitosas} exitosas</p>
-                                    </div>
-
-                                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Calendar className="w-5 h-5 text-green-600" />
-                                            <span className="text-gray-600 text-sm font-medium">Citas</span>
-                                        </div>
-                                        <p className="text-3xl font-bold text-gray-900">{selectedProspector.metricas.citas.agendadas}</p>
-                                        <p className="text-sm text-green-600 mt-1">{selectedProspector.metricas.citas.transferidas} transferidas</p>
-                                    </div>
-
-                                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Users className="w-5 h-5 text-purple-600" />
-                                            <span className="text-gray-600 text-sm font-medium">Prospectos</span>
-                                        </div>
-                                        <p className="text-3xl font-bold text-gray-900">{selectedProspector.metricas.prospectos.total}</p>
-                                        <p className="text-sm text-purple-600 mt-1">{selectedProspector.metricas.prospectos.nuevos} nuevos</p>
-                                    </div>
-
-                                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Target className="w-5 h-5 text-orange-600" />
-                                            <span className="text-gray-600 text-sm font-medium">Tasa Contacto</span>
-                                        </div>
-                                        <p className="text-3xl font-bold text-gray-900">{selectedProspector.metricas.tasas.contacto}%</p>
-                                        <p className="text-sm text-orange-600 mt-1">Agendamiento: {selectedProspector.metricas.tasas.agendamiento}%</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Distribución del Embudo */}
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Distribución del Embudo</h3>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-28 text-sm text-gray-600 font-medium">Nuevos</div>
-                                        <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
-                                            <div
-                                                className="bg-blue-500 h-full rounded-full transition-all"
-                                                style={{ width: `${(selectedProspector.distribucion.prospecto_nuevo / selectedProspector.metricas.prospectos.total * 100)}%` }}
-                                            ></div>
-                                        </div>
-                                        <span className="text-gray-900 font-bold text-sm w-10 text-right">{selectedProspector.distribucion.prospecto_nuevo}</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-28 text-sm text-gray-600 font-medium">En Contacto</div>
-                                        <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
-                                            <div
-                                                className="bg-green-500 h-full rounded-full transition-all"
-                                                style={{ width: `${(selectedProspector.distribucion.en_contacto / selectedProspector.metricas.prospectos.total * 100)}%` }}
-                                            ></div>
-                                        </div>
-                                        <span className="text-gray-900 font-bold text-sm w-10 text-right">{selectedProspector.distribucion.en_contacto}</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-28 text-sm text-gray-600 font-medium">Agendadas</div>
-                                        <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
-                                            <div
-                                                className="bg-green-600 h-full rounded-full transition-all"
-                                                style={{ width: `${(selectedProspector.distribucion.reunion_agendada / selectedProspector.metricas.prospectos.total * 100)}%` }}
-                                            ></div>
-                                        </div>
-                                        <span className="text-gray-900 font-bold text-sm w-10 text-right">{selectedProspector.distribucion.reunion_agendada}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Estado y Descripción */}
-                            <div className={`${getColorClasses(selectedProspector.rendimiento.color).bg} border ${getColorClasses(selectedProspector.rendimiento.color).border} rounded-lg p-4`}>
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">Evaluación</h3>
-                                <p className={`text-sm ${getColorClasses(selectedProspector.rendimiento.color).text} font-medium`}>
-                                    {selectedProspector.rendimiento.descripcion}
-                                </p>
-                            </div>
-                        </div>
+                            );
+                        })}
                     </div>
-                </div>
-            )}
+                ) : (
+                    // VISTA TABLA
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="text-left px-6 py-4 text-gray-700 font-semibold text-sm">Prospector</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Llamadas</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Exitosas</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Tasa</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Citas</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Transferencias</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Prospectos</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Estado</th>
+                                    <th className="text-center px-6 py-4 text-gray-700 font-semibold text-sm">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.prospectors.map((item, index) => {
+                                    const colorClasses = getColorClasses(item.rendimiento.color);
+                                    return (
+                                        <tr key={item.prospector.id} className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                                            <td className="px-6 py-4">
+                                                <div>
+                                                    <p className="font-semibold text-gray-900 text-sm">{item.prospector.nombre}</p>
+                                                    <p className="text-gray-600 text-xs">{item.prospector.correo}</p>
+                                                </div>
+                                            </td>
+                                            <td className="text-center px-6 py-4 text-gray-900 font-bold">{item.metricas.llamadas.total}</td>
+                                            <td className="text-center px-6 py-4 text-green-600 font-bold">{item.metricas.llamadas.exitosas}</td>
+                                            <td className="text-center px-6 py-4">
+                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                                                    {item.metricas.tasas.contacto}%
+                                                </span>
+                                            </td>
+                                            <td className="text-center px-6 py-4 text-purple-600 font-bold">{item.metricas.citas.agendadas}</td>
+                                            <td className="text-center px-6 py-4 text-gray-600">{item.metricas.citas.transferidas}</td>
+                                            <td className="text-center px-6 py-4 text-gray-600">{item.metricas.prospectos.total}</td>
+                                            <td className="text-center px-6 py-4">
+                                                <div className={`inline-flex items-center gap-1 px-2 py-1 ${colorClasses.badge} rounded-lg`}>
+                                                    {getEstadoIcon(item.rendimiento.estado)}
+                                                    <span className="capitalize text-xs font-semibold">{item.rendimiento.estado}</span>
+                                                </div>
+                                            </td>
+                                            <td className="text-center px-6 py-4">
+                                                <button
+                                                    onClick={() => setSelectedProspector(item)}
+                                                    className="text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                                                >
+                                                    Ver
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
