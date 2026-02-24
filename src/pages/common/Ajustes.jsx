@@ -88,7 +88,7 @@ export default function VendedorAjustes() {
 
     const handleSaveProfile = async (e) => {
         e.preventDefault();
-        const userId = user.id || user._id;
+        const userId = user?.id || user?._id;
         if (!userId) return toast.error('No se pudo identificar el usuario');
         setSavingProfile(true);
         try {
@@ -112,7 +112,7 @@ export default function VendedorAjustes() {
         e.preventDefault();
         if (passForm.next !== passForm.confirm) return toast.error('Las contraseñas no coinciden');
         if (passForm.next.length < 6) return toast.error('Mínimo 6 caracteres');
-        const userId = user.id || user._id;
+        const userId = user?.id || user?._id;
         if (!userId) return toast.error('No se pudo identificar el usuario');
         setSavingPass(true);
         try {
@@ -138,7 +138,7 @@ export default function VendedorAjustes() {
         closer: 'from-blue-500 to-indigo-600',
         prospector: 'from-teal-500 to-emerald-600',
     };
-    const roleBg = roleColors[user.rol] || 'from-slate-500 to-slate-600';
+    const roleBg = roleColors[user?.rol] || 'from-slate-500 to-slate-600';
 
     const inp = "w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all text-sm shadow-sm";
 
@@ -170,7 +170,7 @@ export default function VendedorAjustes() {
                                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-white to-slate-100 shadow-xl ring-4 ring-white flex items-center justify-center text-3xl sm:text-4xl font-black text-transparent bg-clip-text"
                                         style={{ background: `linear-gradient(135deg, var(--tw-gradient-stops))` }}>
                                         <div className={`w-full h-full rounded-2xl bg-gradient-to-br ${roleBg} flex items-center justify-center text-white text-3xl sm:text-4xl font-black shadow-lg`}>
-                                            {(user.nombre || 'U').charAt(0).toUpperCase()}
+                                            {String(user?.nombre || 'U').charAt(0).toUpperCase()}
                                         </div>
                                     </div>
                                     {googleConnected && (
@@ -181,11 +181,11 @@ export default function VendedorAjustes() {
                                 </div>
 
                                 <div className="flex-1 pb-0">
-                                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{user.nombre}</h1>
+                                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{user?.nombre || 'Usuario'}</h1>
                                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                        <span className="text-slate-400 text-sm">@{user.usuario}</span>
+                                        <span className="text-slate-400 text-sm">@{user?.usuario || 'usuario'}</span>
                                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${roleBg}`}>
-                                            {user.rol}
+                                            {user?.rol || 'Rol'}
                                         </span>
                                         {googleConnected && (
                                             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-600 border border-green-200">
@@ -359,7 +359,7 @@ export default function VendedorAjustes() {
                                             <div className="flex items-center gap-4">
                                                 {user?.nombre ? (
                                                     <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-md flex-shrink-0 text-xl font-bold text-green-700">
-                                                        {user.nombre.charAt(0).toUpperCase()}
+                                                        {String(user?.nombre).charAt(0).toUpperCase()}
                                                     </div>
                                                 ) : (
                                                     <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-md flex-shrink-0">
@@ -439,7 +439,7 @@ export default function VendedorAjustes() {
                                 </div>
                             </div>
 
-                           
+
                         </div>
                     )}
 
