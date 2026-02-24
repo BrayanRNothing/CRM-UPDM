@@ -1,1 +1,2 @@
-web: npm run build && node backend/server.js
+# Este archivo ya no se usa. Ver railway.toml en la raíz del proyecto
+

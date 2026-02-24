@@ -1,0 +1,8 @@
+# Railway configuration
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build && cd backend && npm install && cd .."
+
+[deploy]
+startCommand = "node backend/server.js"
+
