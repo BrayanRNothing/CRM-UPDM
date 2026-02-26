@@ -1,0 +1,10 @@
+# Ignorar frontend - Solo desplegar backend
+src/
+public/
+dist/
+node_modules/
+.env
+.env.local
+.env.development
+vite.config.js
+index.html
