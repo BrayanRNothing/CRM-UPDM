@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
 const dbHelper = require('../config/db-helper');
 const { auth } = require('../middleware/auth');
 const { toMongoFormat, toMongoFormatMany } = require('../lib/helpers');
+const { buildDynamicQuery } = require('../lib/query-builder');
 
 const esProspector = (req, res, next) => {
     const rol = String(req.usuario.rol).toLowerCase();
@@ -185,17 +185,20 @@ router.get('/prospectos', [auth, esProspector], async (req, res) => {
         const prospectorId = parseInt(req.usuario.id);
         const { etapa, busqueda } = req.query;
 
-        let sql = 'SELECT c.*, u.nombre as closerNombre FROM clientes c LEFT JOIN usuarios u ON c.closerAsignado = u.id WHERE c.prospectorAsignado = ? AND c.etapaEmbudo NOT IN (?, ?)';
-        const params = [prospectorId, 'venta_ganada', 'perdido'];
+        let sql = 'SELECT c.*, u.nombre as closerNombre FROM clientes c LEFT JOIN usuarios u ON c.closerAsignado = u.id WHERE c.prospectorAsignado = $1 AND c.etapaEmbudo NOT IN ($2, $3)';
+        let params = [prospectorId, 'venta_ganada', 'perdido'];
+        let paramIndex = 4;
 
         if (etapa && etapa !== 'todos') {
-            sql += ' AND c.etapaEmbudo = ?';
+            sql += ` AND c.etapaEmbudo = $${paramIndex}`;
             params.push(etapa);
+            paramIndex++;
         }
         if (busqueda) {
-            sql += ' AND (c.nombres LIKE ? OR c.apellidoPaterno LIKE ? OR c.empresa LIKE ? OR c.telefono LIKE ?)';
             const like = '%' + busqueda + '%';
+            sql += ` AND (c.nombres ILIKE $${paramIndex} OR c.apellidoPaterno ILIKE $${paramIndex + 1} OR c.empresa ILIKE $${paramIndex + 2} OR c.telefono ILIKE $${paramIndex + 3})`;
             params.push(like, like, like, like);
+            paramIndex += 4;
         }
         sql += ' ORDER BY c.fechaUltimaEtapa DESC';
 
@@ -220,13 +223,15 @@ router.get('/clientes-ganados', [auth, esProspector], async (req, res) => {
         const prospectorId = parseInt(req.usuario.id);
         const { busqueda } = req.query;
 
-        let sql = 'SELECT c.*, u.nombre as closerNombre FROM clientes c LEFT JOIN usuarios u ON c.closerAsignado = u.id WHERE c.prospectorAsignado = ? AND c.etapaEmbudo = ?';
-        const params = [prospectorId, 'venta_ganada'];
+        let sql = 'SELECT c.*, u.nombre as closerNombre FROM clientes c LEFT JOIN usuarios u ON c.closerAsignado = u.id WHERE c.prospectorAsignado = $1 AND c.etapaEmbudo = $2';
+        let params =  [prospectorId, 'venta_ganada'];
+        let paramIndex = 3;
 
         if (busqueda) {
-            sql += ' AND (c.nombres LIKE ? OR c.apellidoPaterno LIKE ? OR c.empresa LIKE ? OR c.telefono LIKE ?)';
             const like = '%' + busqueda + '%';
+            sql += ` AND (c.nombres ILIKE $${paramIndex} OR c.apellidoPaterno ILIKE $${paramIndex + 1} OR c.empresa ILIKE $${paramIndex + 2} OR c.telefono ILIKE $${paramIndex + 3})`;
             params.push(like, like, like, like);
+            paramIndex += 4;
         }
         sql += ' ORDER BY c.fechaUltimaEtapa DESC';
 
@@ -301,7 +306,7 @@ router.post('/registrar-actividad', [auth, esProspector], async (req, res) => {
         }
 
         const cid = parseInt(clienteId);
-        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [cid]);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [cid]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Cliente no encontrado' });
         }
@@ -321,18 +326,18 @@ router.post('/registrar-actividad', [auth, esProspector], async (req, res) => {
 
         await dbHelper.run(
             `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [tipo, prospectorId, cid, fechaActividad, descripcion || `${tipo} registrada`, resultadoFinal, notas || '']
         );
 
         const now = new Date().toISOString();
-        await dbHelper.run('UPDATE clientes SET ultimaInteraccion = ? WHERE id = ?', [now, cid]);
+        await dbHelper.run('UPDATE clientes SET ultimaInteraccion = $1 WHERE id = $2', [now, cid]);
 
         if (tipo === 'llamada' && resultadoFinal === 'exitoso' && cliente.etapaEmbudo === 'prospecto_nuevo') {
             const hist = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
             hist.push({ etapa: 'en_contacto', fecha: now, vendedor: prospectorId });
             await dbHelper.run(
-                'UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, historialEmbudo = ? WHERE id = ?',
+                'UPDATE clientes SET etapaEmbudo = $1, fechaUltimaEtapa = $2, historialEmbudo = $3 WHERE id = $4',
                 ['en_contacto', now, JSON.stringify(hist), cid]
             );
         }
@@ -356,7 +361,7 @@ router.get('/prospecto/:id/historial-completo', [auth, esProspector], async (req
         const usuarioId = parseInt(req.usuario.id);
 
         // Obtener cliente
-        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [prospectoId]);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [prospectoId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
@@ -378,7 +383,7 @@ router.get('/prospecto/:id/historial-completo', [auth, esProspector], async (req
             SELECT a.*, u.nombre as vendedorNombre, u.rol as vendedorRol
             FROM actividades a
             LEFT JOIN usuarios u ON a.vendedor = u.id
-            WHERE a.cliente = ?
+            WHERE a.cliente = $1
             ORDER BY a.fecha ASC
         `, [prospectoId]);
 
