@@ -5,6 +5,21 @@
 
 const db = require('./database');
 
+const isPostgres = db.isPostgres || !!process.env.DATABASE_URL;
+
+const normalizeSql = (sql) => {
+  if (!isPostgres) {
+    return sql;
+  }
+
+  if (!sql.includes('?')) {
+    return sql;
+  }
+
+  let index = 0;
+  return sql.replace(/\?/g, () => `$${++index}`);
+};
+
 const dbHelper = {
   /**
    * Obtener una sola fila
@@ -13,9 +28,9 @@ const dbHelper = {
    */
   async getOne(sql, params = []) {
     try {
-      if (db.isPostgres) {
-        const result = await db.query(sql, params);
-        return result.rows[0] || null;
+      if (isPostgres) {
+        const result = await db.query(normalizeSql(sql), params);
+        return result.rows?.[0] || null;
       } else {
         const stmt = db.prepare(sql);
         return stmt.get(...params) || null;
@@ -33,9 +48,9 @@ const dbHelper = {
    */
   async getAll(sql, params = []) {
     try {
-      if (db.isPostgres) {
-        const result = await db.query(sql, params);
-        return result.rows;
+      if (isPostgres) {
+        const result = await db.query(normalizeSql(sql), params);
+        return Array.isArray(result.rows) ? result.rows : [];
       } else {
         const stmt = db.prepare(sql);
         return stmt.all(...params);
@@ -54,8 +69,8 @@ const dbHelper = {
    */
   async run(sql, params = []) {
     try {
-      if (db.isPostgres) {
-        const result = await db.query(sql, params);
+      if (isPostgres) {
+        const result = await db.query(normalizeSql(sql), params);
         // Para INSERT, necesitamos RETURNING id
         return {
           lastID: result.rows[0]?.id || null,
@@ -82,7 +97,7 @@ const dbHelper = {
   async getOneWithId(sql, params = []) {
     try {
       if (db.isPostgres) {
-        const result = await db.query(sql, params);
+        const result = await db.query(normalizeSql(sql), params);
         return result.rows[0] || null;
       } else {
         const stmt = db.prepare(sql);
