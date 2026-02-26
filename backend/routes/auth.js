@@ -17,10 +17,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ mensaje: 'Por favor ingrese usuario y contraseña' });
         }
 
-        const loginQuery = db.isPostgres
-            ? 'SELECT * FROM usuarios WHERE usuario = $1'
-            : 'SELECT * FROM usuarios WHERE usuario = ?';
-        const row = await dbHelper.getOne(loginQuery, [usuario.trim()]);
+        const row = await dbHelper.getOne('SELECT * FROM usuarios WHERE usuario = $1', [usuario.trim()]);
         if (!row) {
             return res.status(400).json({ mensaje: 'Credenciales inválidas' });
         }
@@ -71,10 +68,7 @@ router.post('/login', async (req, res) => {
 // @access  Private
 router.get('/me', auth, async (req, res) => {
     try {
-        const meQuery = db.isPostgres
-            ? 'SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = $1'
-            : 'SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = ?';
-        const user = await dbHelper.getOne(meQuery, [req.usuario.id]);
+        const user = await dbHelper.getOne('SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = $1', [req.usuario.id]);
         res.json(user);
     } catch (error) {
         console.error('Error en auth/me:', error);

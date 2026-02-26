@@ -17,10 +17,7 @@ const auth = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
 
         // Verificar que el usuario exista y esté activo
-        const userQuery = db.isPostgres
-            ? 'SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = $1'
-            : 'SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = ?';
-        const row = await dbHelper.getOne(userQuery, [decoded.id]);
+        const row = await dbHelper.getOne('SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = $1', [decoded.id]);
 
         if (!row) {
             return res.status(401).json({ mensaje: 'Token inválido - Usuario no encontrado' });

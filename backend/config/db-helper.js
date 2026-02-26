@@ -1,42 +1,24 @@
 /**
- * Helper para queries de base de datos
- * Funciona con SQLite y PostgreSQL
+ * Helper LIMPIO para PostgreSQL
+ * Simplifica las queries (SOLO POSTGRESQL)
  */
 
-const db = require('./database');
-
-const isPostgres = db.isPostgres || !!process.env.DATABASE_URL;
-
-const normalizeSql = (sql) => {
-  if (!isPostgres) {
-    return sql;
-  }
-
-  if (!sql.includes('?')) {
-    return sql;
-  }
-
-  let index = 0;
-  return sql.replace(/\?/g, () => `$${++index}`);
-};
+const pool = require('./database');
 
 const dbHelper = {
   /**
    * Obtener una sola fila
-   * @param {string} sql - Query SQL con placeholders (? para SQLite, $1/$2 para PG)
+   * @param {string} sql - Query SQL con placeholders $1, $2, etc.
    * @param {array} params - Parámetros
    */
   async getOne(sql, params = []) {
     try {
-      if (isPostgres) {
-        const result = await db.query(normalizeSql(sql), params);
-        return result.rows?.[0] || null;
-      } else {
-        const stmt = db.prepare(sql);
-        return stmt.get(...params) || null;
-      }
+      const result = await pool.query(sql, params);
+      return result.rows[0] || null;
     } catch (error) {
-      console.error('❌ Error en getOne:', error);
+      console.error('❌ dbHelper.getOne Error:', sql);
+      console.error('   Params:', params);
+      console.error('   Message:', error.message);
       throw error;
     }
   },
@@ -48,15 +30,12 @@ const dbHelper = {
    */
   async getAll(sql, params = []) {
     try {
-      if (isPostgres) {
-        const result = await db.query(normalizeSql(sql), params);
-        return Array.isArray(result.rows) ? result.rows : [];
-      } else {
-        const stmt = db.prepare(sql);
-        return stmt.all(...params);
-      }
+      const result = await pool.query(sql, params);
+      return result.rows || [];
     } catch (error) {
-      console.error('❌ Error en getAll:', error);
+      console.error('❌ dbHelper.getAll Error:', sql);
+      console.error('   Params:', params);
+      console.error('   Message:', error.message);
       throw error;
     }
   },
@@ -65,46 +44,32 @@ const dbHelper = {
    * Ejecutar INSERT, UPDATE, DELETE
    * @param {string} sql - Query SQL
    * @param {array} params - Parámetros
-   * @returns {object} - { lastID, changes }
    */
   async run(sql, params = []) {
     try {
-      if (isPostgres) {
-        const result = await db.query(normalizeSql(sql), params);
-        // Para INSERT, necesitamos RETURNING id
-        return {
-          lastID: result.rows[0]?.id || null,
-          changes: result.rowCount
-        };
-      } else {
-        const stmt = db.prepare(sql);
-        const info = stmt.run(...params);
-        return {
-          lastID: info.lastInsertRowid,
-          changes: info.changes
-        };
-      }
+      const result = await pool.query(sql, params);
+      return {
+        lastID: result.rows[0]?.id || null,
+        changes: result.rowCount
+      };
     } catch (error) {
-      console.error('❌ Error en run:', error);
+      console.error('❌ dbHelper.run Error:', sql);
+      console.error('   Params:', params);
+      console.error('   Message:', error.message);
       throw error;
     }
   },
 
   /**
-   * Obtener una sola fila y la última ID insertada
-   * (Para crear recurso y devolverlo)
+   * Query directo (para queries complejas)
    */
-  async getOneWithId(sql, params = []) {
+  async query(sql, params = []) {
     try {
-      if (db.isPostgres) {
-        const result = await db.query(normalizeSql(sql), params);
-        return result.rows[0] || null;
-      } else {
-        const stmt = db.prepare(sql);
-        return stmt.get(...params) || null;
-      }
+      return await pool.query(sql, params);
     } catch (error) {
-      console.error('❌ Error en getOneWithId:', error);
+      console.error('❌ dbHelper.query Error:', sql);
+      console.error('   Params:', params);
+      console.error('   Message:', error.message);
       throw error;
     }
   }
