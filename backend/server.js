@@ -60,17 +60,27 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+// ❌ DESACTIVADO: Railway solo sirve API, Vercel sirve el frontend
 // ✅ SERVIR ARCHIVOS ESTÁTICOS DEL FRONTEND (React compilado)
-const distPath = path.join(__dirname, '../dist');
-app.use(express.static(distPath));
+// const distPath = path.join(__dirname, '../dist');
+// app.use(express.static(distPath));
 
 // ✅ FALLBACK PARA SPA REACT - Cualquier ruta que no sea /api redirige a index.html
-app.get('*', (req, res) => {
-    // No servir para rutas /api
-    if (req.path.startsWith('/api')) {
-        return res.status(404).json({ mensaje: 'Ruta API no encontrada' });
-    }
-    res.sendFile(path.join(distPath, 'index.html'));
+// app.get('*', (req, res) => {
+//     // No servir para rutas /api
+//     if (req.path.startsWith('/api')) {
+//         return res.status(404).json({ mensaje: 'Ruta API no encontrada' });
+//     }
+//     res.sendFile(path.join(distPath, 'index.html'));
+// });
+
+// ✅ Ruta 404 para todas las rutas que no sean /api
+app.use((req, res) => {
+    res.status(404).json({ 
+        mensaje: 'Ruta no encontrada - Solo se sirven APIs en este servidor',
+        ruta: req.path,
+        metodo: req.method
+    });
 });
 
 // Manejo de errores global
