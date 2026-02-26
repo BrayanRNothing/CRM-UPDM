@@ -622,16 +622,20 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
                     expiry_date: closerDetails.googleTokenExpiry
                 });
 
-                client.on('tokens', (tokens) => {
-                    let updateStr = [];
-                    let params = [];
-                    if (tokens.refresh_token) { updateStr.push('googleRefreshToken = ?'); params.push(tokens.refresh_token); }
-                    if (tokens.access_token) { updateStr.push('googleAccessToken = ?'); params.push(tokens.access_token); }
-                    if (tokens.expiry_date) { updateStr.push('googleTokenExpiry = ?'); params.push(tokens.expiry_date); }
+                client.on('tokens', async (tokens) => {
+                    try {
+                        let updateStr = [];
+                        let params = [];
+                        if (tokens.refresh_token) { updateStr.push('googleRefreshToken = ?'); params.push(tokens.refresh_token); }
+                        if (tokens.access_token) { updateStr.push('googleAccessToken = ?'); params.push(tokens.access_token); }
+                        if (tokens.expiry_date) { updateStr.push('googleTokenExpiry = ?'); params.push(tokens.expiry_date); }
 
-                    if (updateStr.length > 0) {
-                        params.push(closerIdNum);
-                        await dbHelper.run(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`, params);
+                        if (updateStr.length > 0) {
+                            params.push(closerIdNum);
+                            await dbHelper.run(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`, params);
+                        }
+                    } catch (tokenUpdateError) {
+                        console.error('Error al actualizar tokens de Google:', tokenUpdateError);
                     }
                 });
 
