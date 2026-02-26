@@ -117,41 +117,26 @@ router.get('/dashboard', [auth, esProspector], async (req, res) => {
                 : 0
         };
 
-        // Filtros por período
+        // Filtros por período (PostgreSQL)
         // Actividades: campo 'fecha'
-        const FILTROS_ACT = db.isPostgres ? {
+        const FILTROS_ACT = {
             dia: "fecha::date = CURRENT_DATE",
             semana: "fecha::date >= CURRENT_DATE - INTERVAL '6 days'",
             mes: "fecha::date >= date_trunc('month', CURRENT_DATE)",
             total: null
-        } : {
-            dia: "DATE(fecha) = DATE('now','localtime')",
-            semana: "DATE(fecha) >= DATE('now','localtime','-6 days')",
-            mes: "DATE(fecha) >= DATE('now','localtime','start of month')",
-            total: null
         };
         // Prospectos nuevos: campo 'fechaRegistro'
-        const FILTROS_CLI = db.isPostgres ? {
+        const FILTROS_CLI = {
             dia: "COALESCE(fechaRegistro, fechaUltimaEtapa)::date = CURRENT_DATE",
             semana: "COALESCE(fechaRegistro, fechaUltimaEtapa)::date >= CURRENT_DATE - INTERVAL '6 days'",
             mes: "COALESCE(fechaRegistro, fechaUltimaEtapa)::date >= date_trunc('month', CURRENT_DATE)",
             total: null
-        } : {
-            dia: "(DATE(fechaRegistro) = DATE('now','localtime') OR (fechaRegistro IS NULL AND DATE(fechaUltimaEtapa) = DATE('now','localtime')))",
-            semana: "(DATE(fechaRegistro) >= DATE('now','localtime','-6 days') OR (fechaRegistro IS NULL AND DATE(fechaUltimaEtapa) >= DATE('now','localtime','-6 days')))",
-            mes: "(DATE(fechaRegistro) >= DATE('now','localtime','start of month') OR (fechaRegistro IS NULL AND DATE(fechaUltimaEtapa) >= DATE('now','localtime','start of month')))",
-            total: null
         };
         // Reuniones agendadas: campo 'fechaUltimaEtapa' (momento en que se pasó a reunion_agendada)
-        const FILTROS_REUNION = db.isPostgres ? {
+        const FILTROS_REUNION = {
             dia: "fechaUltimaEtapa::date = CURRENT_DATE",
             semana: "fechaUltimaEtapa::date >= CURRENT_DATE - INTERVAL '6 days'",
             mes: "fechaUltimaEtapa::date >= date_trunc('month', CURRENT_DATE)",
-            total: null
-        } : {
-            dia: "DATE(fechaUltimaEtapa) = DATE('now','localtime')",
-            semana: "DATE(fechaUltimaEtapa) >= DATE('now','localtime','-6 days')",
-            mes: "DATE(fechaUltimaEtapa) >= DATE('now','localtime','start of month')",
             total: null
         };
 
