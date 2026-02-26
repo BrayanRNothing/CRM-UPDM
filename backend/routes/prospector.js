@@ -362,12 +362,14 @@ router.get('/prospecto/:id/historial-completo', [auth, esProspector], async (req
         }
 
         // Validar permisos: el prospector o closer asignado pueden ver el historial
+        // Si no está asignado a nadie, cualquier prospector puede verlo
         const prospectorAsignadoId = cliente.prospectorAsignado ? parseInt(cliente.prospectorAsignado) : null;
         const closerAsignadoId = cliente.closerAsignado ? parseInt(cliente.closerAsignado) : null;
         const esProspectorAsignado = prospectorAsignadoId === usuarioId;
         const esCloserAsignado = closerAsignadoId === usuarioId;
+        const noAsignado = !prospectorAsignadoId && !closerAsignadoId;
 
-        if (!esProspectorAsignado && !esCloserAsignado) {
+        if (!esProspectorAsignado && !esCloserAsignado && !noAsignado) {
             return res.status(403).json({ msg: 'No tienes permiso para ver este historial' });
         }
 
