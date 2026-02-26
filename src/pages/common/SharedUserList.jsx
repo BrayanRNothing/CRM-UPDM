@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Avatar from '../../components/ui/Avatar';
 import API_URL from '../../config/api';
 import { Mail, Phone, Calendar, CheckCircle2, XCircle } from 'lucide-react';
+import { getToken } from '../../utils/authUtils';
 
 const GoogleIcon = ({ size = 14 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24">
@@ -20,9 +21,9 @@ const SharedUserList = ({ role, title }) => {
         const cargarUsuarios = async () => {
             setCargando(true);
             try {
-                const token = localStorage.getItem('token');
+                const token = getToken();
                 const res = await fetch(`${API_URL}/api/usuarios`, {
-                    headers: { 'x-auth-token': token }
+                    headers: { 'x-auth-token': token || '' }
                 });
                 if (res.ok) {
                     const data = await res.json();

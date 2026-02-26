@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, DollarSign, Calendar, TrendingUp, RefreshCw, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import { getToken } from '../../utils/authUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -14,11 +15,11 @@ const CloserClientes = () => {
         const fetchClientesGanados = async () => {
             try {
                 setLoading(true);
-                const token = localStorage.getItem('token');
+                const token = getToken();
                 if (!token) throw new Error('No se encontró token de acceso');
 
                 const res = await axios.get(`${API_URL}/api/closer/clientes-ganados`, {
-                    headers: { 'x-auth-token': token }
+                    headers: { 'x-auth-token': token || '' }
                 });
 
                 // Mapeo seguro de datos que vienen de la tabla clientes (y tal vez ventas en un futuro)

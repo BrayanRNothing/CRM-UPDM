@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, TrendingUp, Users, RefreshCw, Award, Clock, BarChart3, Target, CheckCircle2, DollarSign, AlertTriangle, TrendingDown, Zap } from 'lucide-react';
 import axios from 'axios';
 import FunnelVisual from '../../components/FunnelVisual';
+import { getToken } from '../../utils/authUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -91,13 +92,13 @@ const CloserDashboard = () => {
     };
 
     const getAuthHeaders = () => ({
-        'x-auth-token': localStorage.getItem('token') || ''
+        'x-auth-token': getToken() || ''
     });
 
     const cargarDatos = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
+            const token = getToken();
 
             if (!token) {
                 setData(INITIAL_DATA);
@@ -106,7 +107,7 @@ const CloserDashboard = () => {
                 return;
             }
 
-            const config = { headers: { 'x-auth-token': token } };
+            const config = { headers: { 'x-auth-token': token || '' } };
 
             try {
                 const res = await axios.get(`${API_URL}/api/closer/dashboard`, config);

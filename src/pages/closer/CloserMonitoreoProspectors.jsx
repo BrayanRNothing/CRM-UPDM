@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Phone, Calendar, TrendingUp, RefreshCw, Activity, Target, AlertCircle, CheckCircle2, X, ChevronRight, BarChart3, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
+import { getToken } from '../../utils/authUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -63,7 +64,7 @@ const CloserMonitoreoProspectors = () => {
         try {
             const response = await axios.get(`${API_URL}/api/closer/prospectors/monitoring`, {
                 params: { periodo },
-                headers: { 'x-auth-token': localStorage.getItem('token') }
+                headers: { 'x-auth-token': getToken() || '' }
             });
             setData(response.data);
             setUsandoMock(false);

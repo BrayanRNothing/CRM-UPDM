@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AnimatedGridBackground from '../../components/ui/AnimatedGridBackground';
 import { ChevronLeft, User, Phone, Mail, BadgeCheck, Shield } from 'lucide-react';
-import { getUser } from '../../utils/authUtils';
+import { getToken, getUser } from '../../utils/authUtils';
+import API_URL from '../../config/api';
 import toast from 'react-hot-toast';
 
 const UserProfile = () => {
@@ -15,7 +16,7 @@ const UserProfile = () => {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+                const token = getToken();
                 // Reutilizamos el endpoint de usuarios. Para ver un usuario específico quizás necesitemos un endpoint GET /:id
                 // Si no existe, podemos buscarlo en la lista completa o implementar endpoint
 
@@ -25,8 +26,8 @@ const UserProfile = () => {
                 // Revisando rutas: router.put('/:id'), router.delete('/:id'). FALTABA GET /:id individual.
                 // Modificaré el fetch para traer la lista y filtrar por ahora, para no tocar backend de nuevo si no es crítico.
 
-                const response = await fetch('http://localhost:4000/api/usuarios', {
-                    headers: { 'x-auth-token': token }
+                const response = await fetch(`${API_URL}/api/usuarios`, {
+                    headers: { 'x-auth-token': token || '' }
                 });
 
                 if (response.ok) {

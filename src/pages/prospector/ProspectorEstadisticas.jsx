@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Phone, UserPlus, Calendar, TrendingUp, TrendingDown, RefreshCw, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import { getToken } from '../../utils/authUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -14,7 +15,7 @@ const ProspectorEstadisticas = () => {
         setError(null);
         try {
             const response = await axios.get(`${API_URL}/api/prospector/estadisticas`, {
-                headers: { 'x-auth-token': localStorage.getItem('token') }
+                headers: { 'x-auth-token': getToken() || '' }
             });
             setStats(response.data);
         } catch (err) {

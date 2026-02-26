@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Phone, UserPlus, Calendar, TrendingUp, RefreshCw, Clock, CheckCircle2, Target, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 import FunnelVisual from '../../components/FunnelVisual';
+import { getToken } from '../../utils/authUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -19,7 +20,7 @@ const EMPTY_DATA = {
     periodos: { dia: EMPTY_PERIODO, semana: EMPTY_PERIODO, mes: EMPTY_PERIODO, total: EMPTY_PERIODO }
 };
 
-const getAuthHeaders = () => ({ 'x-auth-token': localStorage.getItem('token') || '' });
+const getAuthHeaders = () => ({ 'x-auth-token': getToken() || '' });
 
 const ProspectorDashboard = () => {
     const [data, setData] = useState(null);
