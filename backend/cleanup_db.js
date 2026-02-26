@@ -8,11 +8,9 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-const isProd = process.env.NODE_ENV === 'production';
-
 async function cleanDatabase() {
-    if (!isProd || !process.env.DATABASE_URL) {
-        console.log('⚠️ Este script solo funciona con PostgreSQL en producción');
+    if (!process.env.DATABASE_URL) {
+        console.log('⚠️ DATABASE_URL no configurada. Verifica tu .env');
         process.exit(1);
     }
 
@@ -40,16 +38,16 @@ async function cleanDatabase() {
         }
         console.log('✅ Tablas eliminadas');
 
-        // 2. Recrear schema limpio
+        // 2. Recrear schema limpio (IGUAL a SQLite)
         console.log('🔨 Recreando schema...');
         const createTablesSQL = `
             CREATE TABLE usuarios (
                 id SERIAL PRIMARY KEY,
                 usuario TEXT UNIQUE NOT NULL,
                 contraseña TEXT NOT NULL,
-                rol TEXT NOT NULL CHECK(rol IN ('prospector','closer','admin')),
+                rol TEXT NOT NULL CHECK(rol IN ('prospector','closer')),
                 nombre TEXT NOT NULL,
-                email TEXT UNIQUE,
+                email TEXT,
                 telefono TEXT,
                 activo INTEGER DEFAULT 1,
                 fechaCreacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -83,44 +81,46 @@ async function cleanDatabase() {
 
             CREATE TABLE actividades (
                 id SERIAL PRIMARY KEY,
-                tipo TEXT NOT NULL CHECK(tipo IN ('llamada','reunion','email','whatsapp','otro')),
-                resultado TEXT,
+                tipo TEXT NOT NULL CHECK(tipo IN ('llamada','mensaje','correo','whatsapp','cita','prospecto')),
+                vendedor INTEGER NOT NULL REFERENCES usuarios(id),
                 cliente INTEGER NOT NULL REFERENCES clientes(id),
-                usuario INTEGER NOT NULL REFERENCES usuarios(id),
-                descripcion TEXT,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                duracion INTEGER
+                descripcion TEXT,
+                resultado TEXT DEFAULT 'pendiente' CHECK(resultado IN ('exitoso','pendiente','fallido')),
+                cambioEtapa INTEGER DEFAULT 0,
+                etapaAnterior TEXT,
+                etapaNueva TEXT,
+                notas TEXT
             );
 
             CREATE TABLE tareas (
                 id SERIAL PRIMARY KEY,
-                descripcion TEXT NOT NULL,
-                estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente','completada','cancelada')),
+                titulo TEXT NOT NULL,
+                descripcion TEXT,
+                vendedor INTEGER REFERENCES usuarios(id),
                 cliente INTEGER REFERENCES clientes(id),
-                usuario INTEGER NOT NULL REFERENCES usuarios(id),
-                fechaAsignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fechaVencimiento TIMESTAMP,
-                fechaCompletacion TIMESTAMP,
-                prioridad TEXT DEFAULT 'normal' CHECK(prioridad IN ('baja','normal','alta','urgente'))
+                estado TEXT DEFAULT 'pendiente',
+                prioridad TEXT DEFAULT 'media',
+                fechaLimite TIMESTAMP,
+                completada INTEGER DEFAULT 0,
+                fechaCreacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE ventas (
                 id SERIAL PRIMARY KEY,
                 cliente INTEGER NOT NULL REFERENCES clientes(id),
+                vendedor INTEGER NOT NULL REFERENCES usuarios(id),
                 monto DECIMAL(12, 2),
-                estado TEXT DEFAULT 'abierta' CHECK(estado IN ('abierta','ganada','perdida')),
-                fechaCreacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fechaCierre TIMESTAMP,
-                usuario INTEGER NOT NULL REFERENCES usuarios(id),
-                descripcion TEXT
+                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                estado TEXT DEFAULT 'pendiente',
+                notas TEXT
             );
 
             CREATE INDEX idx_clientes_prospector ON clientes(prospectorAsignado);
-            CREATE INDEX idx_clientes_closer ON clientes(closerAsignado);
+            CREATE INDEX idx_clientes_vendedor ON clientes(vendedorAsignado);
+            CREATE INDEX idx_actividades_vendedor ON actividades(vendedor);
+            CREATE INDEX idx_actividades_fecha ON actividades(fecha);
             CREATE INDEX idx_actividades_cliente ON actividades(cliente);
-            CREATE INDEX idx_actividades_usuario ON actividades(usuario);
-            CREATE INDEX idx_tareas_usuario ON tareas(usuario);
-            CREATE INDEX idx_ventas_usuario ON ventas(usuario);
         `;
 
         const createStatements = createTablesSQL.split(';').filter(s => s.trim());
@@ -137,24 +137,17 @@ async function cleanDatabase() {
         const usuarios = [
             {
                 usuario: 'prospector',
-                contraseña: await bcrypt.hash('prospector', salt),
+                contraseña: await bcrypt.hash('prospector123', salt),
                 rol: 'prospector',
                 nombre: 'Usuario Prospector',
                 email: 'prospector@test.com'
             },
             {
                 usuario: 'closer',
-                contraseña: await bcrypt.hash('closer', salt),
+                contraseña: await bcrypt.hash('closer123', salt),
                 rol: 'closer',
                 nombre: 'Usuario Closer',
                 email: 'closer@test.com'
-            },
-            {
-                usuario: 'admin',
-                contraseña: await bcrypt.hash('admin123', salt),
-                rol: 'admin',
-                nombre: 'Administrador',
-                email: 'admin@test.com'
             }
         ];
 
@@ -168,9 +161,8 @@ async function cleanDatabase() {
 
         console.log('\n🎉 Base de datos limpiada y reinicializada exitosamente');
         console.log('\n📝 Credenciales de prueba:');
-        console.log('   • prospector / prospector');
-        console.log('   • closer / closer');
-        console.log('   • admin / admin123');
+        console.log('   • prospector / prospector123');
+        console.log('   • closer / closer123');
 
     } catch (error) {
         console.error('❌ Error:', error.message);

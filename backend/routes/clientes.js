@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+const dbHelper = require('../config/db-helper');
 const { auth, esSuperUser } = require('../middleware/auth');
 const { toMongoFormat } = require('../lib/helpers');
 
@@ -22,7 +23,7 @@ router.get('/', auth, esSuperUser, async (req, res) => {
         }
         sql += ' ORDER BY c.ultimaInteraccion DESC';
 
-        const rows = db.prepare(sql).all(...params);
+        const rows = await dbHelper.getAll(sql, params);
         const clientes = rows.map(r => {
             const { vendedorNombre, ...c } = r;
             const out = toMongoFormat(c);
@@ -38,7 +39,7 @@ router.get('/', auth, esSuperUser, async (req, res) => {
 
 router.get('/:id', auth, esSuperUser, async (req, res) => {
     try {
-        const row = db.prepare('SELECT c.*, u.nombre as vendedorNombre FROM clientes c JOIN usuarios u ON c.vendedorAsignado = u.id WHERE c.id = ?').get(parseInt(req.params.id));
+        const row = await dbHelper.getOne('SELECT c.*, u.nombre as vendedorNombre FROM clientes c JOIN usuarios u ON c.vendedorAsignado = u.id WHERE c.id = ?', [parseInt(req.params.id)]);
         if (!row) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
         if (req.usuario.rol === 'vendedor' && row.vendedorAsignado !== parseInt(req.usuario.id)) {
             return res.status(403).json({ mensaje: 'No tiene permiso' });
@@ -63,13 +64,19 @@ router.post('/', auth, esSuperUser, async (req, res) => {
         const now = new Date().toISOString();
         const hist = JSON.stringify([{ etapa, fecha: now, vendedor: vendedorId }]);
 
-        db.prepare(`
-            INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, estado, etapaEmbudo, historialEmbudo, vendedorAsignado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(nombres, apellidoPaterno || '', apellidoMaterno || '', telefono, correo, empresa || '', estado || 'proceso', etapa, hist, vendedorId);
+        const result = await dbHelper.run(
+            'INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, estado, etapaEmbudo, historialEmbudo, vendedorAsignado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+            [nombres, apellidoPaterno || '', apellidoMaterno || '', telefono, correo, empresa || '', estado || 'proceso', etapa, hist, vendedorId]
+        );
 
-        const row = db.prepare('SELECT * FROM clientes ORDER BY id DESC LIMIT 1').get();
-        res.status(201).json({ mensaje: 'Cliente creado', cliente: toMongoFormat(row) || row });
+        let createdCliente;
+        if (db.isPostgres) {
+            createdCliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [result.lastID]);
+        } else {
+            createdCliente = await dbHelper.getOne('SELECT * FROM clientes ORDER BY id DESC LIMIT 1');
+        }
+
+        res.status(201).json({ mensaje: 'Cliente creado', cliente: toMongoFormat(createdCliente) || createdCliente });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error del servidor' });
     }
@@ -77,7 +84,7 @@ router.post('/', auth, esSuperUser, async (req, res) => {
 
 router.put('/:id', auth, esSuperUser, async (req, res) => {
     try {
-        const c = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        const c = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [parseInt(req.params.id)]);
         if (!c) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
         if (req.usuario.rol === 'vendedor' && c.vendedorAsignado !== parseInt(req.usuario.id)) {
             return res.status(403).json({ mensaje: 'No tiene permiso' });
@@ -85,19 +92,65 @@ router.put('/:id', auth, esSuperUser, async (req, res) => {
         const { nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, estado, notas, vendedorAsignado } = req.body;
         const updates = [];
         const params = [];
-        if (nombres) { updates.push('nombres = ?'); params.push(nombres); }
-        if (apellidoPaterno) { updates.push('apellidoPaterno = ?'); params.push(apellidoPaterno); }
-        if (apellidoMaterno !== undefined) { updates.push('apellidoMaterno = ?'); params.push(apellidoMaterno); }
-        if (telefono) { updates.push('telefono = ?'); params.push(telefono); }
-        if (correo) { updates.push('correo = ?'); params.push(correo); }
-        if (empresa !== undefined) { updates.push('empresa = ?'); params.push(empresa); }
-        if (estado) { updates.push('estado = ?'); params.push(estado); }
-        if (notas !== undefined) { updates.push('notas = ?'); params.push(notas); }
-        if (req.usuario.rol === 'admin' && vendedorAsignado) { updates.push('vendedorAsignado = ?'); params.push(parseInt(vendedorAsignado)); }
-        updates.push('ultimaInteraccion = ?');
-        params.push(new Date().toISOString(), parseInt(req.params.id));
-        db.prepare(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-        const row = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        let paramIndex = 1;
+        
+        if (nombres) { 
+            updates.push(db.isPostgres ? `nombres = $${paramIndex}` : 'nombres = ?'); 
+            params.push(nombres); 
+            paramIndex++;
+        }
+        if (apellidoPaterno) { 
+            updates.push(db.isPostgres ? `apellidoPaterno = $${paramIndex}` : 'apellidoPaterno = ?'); 
+            params.push(apellidoPaterno); 
+            paramIndex++;
+        }
+        if (apellidoMaterno !== undefined) { 
+            updates.push(db.isPostgres ? `apellidoMaterno = $${paramIndex}` : 'apellidoMaterno = ?'); 
+            params.push(apellidoMaterno); 
+            paramIndex++;
+        }
+        if (telefono) { 
+            updates.push(db.isPostgres ? `telefono = $${paramIndex}` : 'telefono = ?'); 
+            params.push(telefono); 
+            paramIndex++;
+        }
+        if (correo) { 
+            updates.push(db.isPostgres ? `correo = $${paramIndex}` : 'correo = ?'); 
+            params.push(correo); 
+            paramIndex++;
+        }
+        if (empresa !== undefined) { 
+            updates.push(db.isPostgres ? `empresa = $${paramIndex}` : 'empresa = ?'); 
+            params.push(empresa); 
+            paramIndex++;
+        }
+        if (estado) { 
+            updates.push(db.isPostgres ? `estado = $${paramIndex}` : 'estado = ?'); 
+            params.push(estado); 
+            paramIndex++;
+        }
+        if (notas !== undefined) { 
+            updates.push(db.isPostgres ? `notas = $${paramIndex}` : 'notas = ?'); 
+            params.push(notas); 
+            paramIndex++;
+        }
+        if (req.usuario.rol === 'admin' && vendedorAsignado) { 
+            updates.push(db.isPostgres ? `vendedorAsignado = $${paramIndex}` : 'vendedorAsignado = ?'); 
+            params.push(parseInt(vendedorAsignado)); 
+            paramIndex++;
+        }
+        
+        updates.push(db.isPostgres ? `ultimaInteraccion = $${paramIndex}` : 'ultimaInteraccion = ?');
+        params.push(new Date().toISOString());
+        paramIndex++;
+        params.push(parseInt(req.params.id));
+        
+        const sql = db.isPostgres ? 
+            `UPDATE clientes SET ${updates.join(', ')} WHERE id = $${paramIndex}` :
+            `UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`;
+        
+        await dbHelper.run(sql, params);
+        const row = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [parseInt(req.params.id)]);
         res.json({ mensaje: 'Cliente actualizado', cliente: toMongoFormat(row) || row });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error del servidor' });
@@ -106,7 +159,7 @@ router.put('/:id', auth, esSuperUser, async (req, res) => {
 
 router.delete('/:id', auth, esSuperUser, async (req, res) => {
     try {
-        const r = db.prepare('DELETE FROM clientes WHERE id = ?').run(parseInt(req.params.id));
+        const r = await dbHelper.run('DELETE FROM clientes WHERE id = ?', [parseInt(req.params.id)]);
         if (r.changes === 0) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
         res.json({ mensaje: 'Cliente eliminado' });
     } catch (error) {
@@ -118,7 +171,7 @@ router.patch('/:id/etapa', auth, esSuperUser, async (req, res) => {
     try {
         const { etapaNueva } = req.body;
         if (!etapaNueva) return res.status(400).json({ mensaje: 'etapaNueva requerida' });
-        const c = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        const c = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [parseInt(req.params.id)]);
         if (!c) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
         if (req.usuario.rol === 'vendedor' && c.vendedorAsignado !== parseInt(req.usuario.id)) {
             return res.status(403).json({ mensaje: 'No tiene permiso' });
@@ -129,9 +182,13 @@ router.patch('/:id/etapa', auth, esSuperUser, async (req, res) => {
         let estado = 'proceso';
         if (etapaNueva === 'ganado') estado = 'ganado';
         else if (etapaNueva === 'perdido') estado = 'perdido';
-        db.prepare('UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ?, estado = ? WHERE id = ?')
-            .run(etapaNueva, now, now, JSON.stringify(hist), estado, parseInt(req.params.id));
-        const row = db.prepare('SELECT * FROM clientes WHERE id = ?').get(parseInt(req.params.id));
+        
+        await dbHelper.run(
+            'UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ?, estado = ? WHERE id = ?',
+            [etapaNueva, now, now, JSON.stringify(hist), estado, parseInt(req.params.id)]
+        );
+        
+        const row = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [parseInt(req.params.id)]);
         res.json({ mensaje: 'Etapa actualizada', cliente: toMongoFormat(row) || row });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error del servidor' });

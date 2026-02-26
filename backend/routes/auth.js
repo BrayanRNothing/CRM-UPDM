@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
+const dbHelper = require('../config/db-helper');
 const { auth } = require('../middleware/auth');
 
 // @route   POST api/auth/login
@@ -16,7 +17,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ mensaje: 'Por favor ingrese usuario y contraseña' });
         }
 
-        const row = db.prepare('SELECT * FROM usuarios WHERE usuario = ?').get(usuario.trim());
+        const row = await dbHelper.getOne('SELECT * FROM usuarios WHERE usuario = ?', [usuario.trim()]);
         if (!row) {
             return res.status(400).json({ mensaje: 'Credenciales inválidas' });
         }
@@ -67,7 +68,7 @@ router.post('/login', async (req, res) => {
 // @access  Private
 router.get('/me', auth, async (req, res) => {
     try {
-        const user = db.prepare('SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = ?').get(req.usuario.id);
+        const user = await dbHelper.getOne('SELECT id, usuario, nombre, rol, email, telefono, activo FROM usuarios WHERE id = ?', [req.usuario.id]);
         res.json(user);
     } catch (error) {
         console.error('Error en auth/me:', error);
