@@ -18,12 +18,12 @@ async function calcularPeriodoActividades(prospectorId, filtroFecha) {
     const where = filtroFecha ? `AND ${filtroFecha}` : '';
 
     const llamadasRow = await dbHelper.getOne(
-        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = ? AND tipo = 'llamada' ${where}`,
+        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = $1 AND tipo = 'llamada' ${where}`,
         [prospectorId]
     );
 
     const mensajesRow = await dbHelper.getOne(
-        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = ? AND tipo IN ('whatsapp','correo','mensaje') ${where}`,
+        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = $1 AND tipo IN ('whatsapp','correo','mensaje') ${where}`,
         [prospectorId]
     );
 
@@ -37,7 +37,7 @@ async function calcularPeriodoClientes(prospectorId, filtroFechaRegistro) {
     const where = filtroFechaRegistro ? `AND ${filtroFechaRegistro}` : '';
     // Excluir prospectos perdidos y ventas ganadas del conteo de "prospectos nuevos"
     const row = await dbHelper.getOne(
-        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo NOT IN ('perdido', 'venta_ganada') ${where}`,
+        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo NOT IN ('perdido', 'venta_ganada') ${where}`,
         [prospectorId]
     );
     return row?.c || 0;
@@ -47,7 +47,7 @@ async function calcularPeriodoClientes(prospectorId, filtroFechaRegistro) {
 async function calcularPeriodoReuniones(prospectorId, filtroFechaEtapa) {
     const where = filtroFechaEtapa ? `AND ${filtroFechaEtapa}` : '';
     const row = await dbHelper.getOne(
-        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo IN ('reunion_agendada','reunion_realizada','venta_ganada') ${where}`,
+        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo IN ('reunion_agendada','reunion_realizada','venta_ganada') ${where}`,
         [prospectorId]
     );
     return row?.c || 0;
@@ -58,7 +58,7 @@ router.get('/dashboard', [auth, esProspector], async (req, res) => {
     try {
         const prospectorId = parseInt(req.usuario.id);
         const clientes = await dbHelper.getAll(
-            'SELECT * FROM clientes WHERE prospectorAsignado = ?',
+            'SELECT * FROM clientes WHERE prospectorAsignado = $1',
             [prospectorId]
         );
 
@@ -258,9 +258,10 @@ router.post('/crear-prospecto', [auth, esProspector], async (req, res) => {
         const closerId = rol === 'closer' ? prospectorId : null;
         const now = new Date().toISOString();
 
-        await dbHelper.run(
+        const result = await dbHelper.getOne(
             `INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, notas, vendedorAsignado, prospectorAsignado, closerAsignado, etapaEmbudo)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'prospecto_nuevo')`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'prospecto_nuevo')
+             RETURNING *`,
             [
                 nombres.trim(),
                 (apellidoPaterno || '').trim(),
@@ -275,8 +276,7 @@ router.post('/crear-prospecto', [auth, esProspector], async (req, res) => {
             ]
         );
 
-        const row = await dbHelper.getOne('SELECT * FROM clientes ORDER BY id DESC LIMIT 1');
-        const cliente = toMongoFormat(row);
+        const cliente = toMongoFormat(result);
         if (cliente) cliente.prospectorAsignado = { nombre: req.usuario.nombre };
 
         res.status(201).json({ msg: 'Prospecto creado', cliente: cliente || row });
@@ -830,7 +830,7 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
         // Función auxiliar para obtener actividades en un período
         const getActividades = async (inicio, fin) => {
             const actividades = await dbHelper.getAll(
-                'SELECT * FROM actividades WHERE vendedor = ? AND fecha >= ? AND fecha < ?',
+                'SELECT * FROM actividades WHERE vendedor = $1 AND fecha >= ? AND fecha < ?',
                 [prospectorId, inicio.toISOString(), fin.toISOString()]
             );
             return actividades || [];
