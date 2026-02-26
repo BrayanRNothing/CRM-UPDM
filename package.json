@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "echo 'Frontend se construye en Vercel, backend no requiere build'",
+    "build:frontend": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "vercel-build": "vite build"
