@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+const dbHelper = require('../config/db-helper');
 const { auth } = require('../middleware/auth');
 const { toMongoFormat, toMongoFormatMany } = require('../lib/helpers');
 
@@ -13,43 +14,53 @@ const esProspector = (req, res, next) => {
 };
 
 // Helper: calcula métricas para un período dado por filtro SQL en campo fecha (actividades) y fechaRegistro (clientes)
-function calcularPeriodoActividades(db, prospectorId, filtroFecha) {
+async function calcularPeriodoActividades(prospectorId, filtroFecha) {
     const where = filtroFecha ? `AND ${filtroFecha}` : '';
 
-    const llamadas = db.prepare(
-        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = ? AND tipo = 'llamada' ${where}`
-    ).get(prospectorId)?.c || 0;
+    const llamadasRow = await dbHelper.getOne(
+        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = ? AND tipo = 'llamada' ${where}`,
+        [prospectorId]
+    );
 
-    const mensajes = db.prepare(
-        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = ? AND tipo IN ('whatsapp','correo','mensaje') ${where}`
-    ).get(prospectorId)?.c || 0;
+    const mensajesRow = await dbHelper.getOne(
+        `SELECT COUNT(*) as c FROM actividades WHERE vendedor = ? AND tipo IN ('whatsapp','correo','mensaje') ${where}`,
+        [prospectorId]
+    );
+
+    const llamadas = llamadasRow?.c || 0;
+    const mensajes = mensajesRow?.c || 0;
 
     return { llamadas, mensajes };
 }
 
-function calcularPeriodoClientes(db, prospectorId, filtroFechaRegistro) {
+async function calcularPeriodoClientes(prospectorId, filtroFechaRegistro) {
     const where = filtroFechaRegistro ? `AND ${filtroFechaRegistro}` : '';
     // Excluir prospectos perdidos y ventas ganadas del conteo de "prospectos nuevos"
-    return db.prepare(
-        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo NOT IN ('perdido', 'venta_ganada') ${where}`
-    ).get(prospectorId)?.c || 0;
+    const row = await dbHelper.getOne(
+        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo NOT IN ('perdido', 'venta_ganada') ${where}`,
+        [prospectorId]
+    );
+    return row?.c || 0;
 }
 
 // Reuniones: filtrar por fechaUltimaEtapa (momento en que se agendó/cambió a esa etapa)
-function calcularPeriodoReuniones(db, prospectorId, filtroFechaEtapa) {
+async function calcularPeriodoReuniones(prospectorId, filtroFechaEtapa) {
     const where = filtroFechaEtapa ? `AND ${filtroFechaEtapa}` : '';
-    return db.prepare(
-        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo IN ('reunion_agendada','reunion_realizada','venta_ganada') ${where}`
-    ).get(prospectorId)?.c || 0;
+    const row = await dbHelper.getOne(
+        `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo IN ('reunion_agendada','reunion_realizada','venta_ganada') ${where}`,
+        [prospectorId]
+    );
+    return row?.c || 0;
 }
 
 // GET /api/prospector/dashboard
 router.get('/dashboard', [auth, esProspector], async (req, res) => {
     try {
         const prospectorId = parseInt(req.usuario.id);
-        const clientes = db.prepare(
-            'SELECT * FROM clientes WHERE prospectorAsignado = ?'
-        ).all(prospectorId);
+        const clientes = await dbHelper.getAll(
+            'SELECT * FROM clientes WHERE prospectorAsignado = ?',
+            [prospectorId]
+        );
 
         // Filtrar solo prospectos activos (excluir perdidos y ventas ganadas)
         const clientesActivos = clientes.filter(c => 
@@ -108,21 +119,36 @@ router.get('/dashboard', [auth, esProspector], async (req, res) => {
 
         // Filtros por período
         // Actividades: campo 'fecha'
-        const FILTROS_ACT = {
+        const FILTROS_ACT = db.isPostgres ? {
+            dia: "fecha::date = CURRENT_DATE",
+            semana: "fecha::date >= CURRENT_DATE - INTERVAL '6 days'",
+            mes: "fecha::date >= date_trunc('month', CURRENT_DATE)",
+            total: null
+        } : {
             dia: "DATE(fecha) = DATE('now','localtime')",
             semana: "DATE(fecha) >= DATE('now','localtime','-6 days')",
             mes: "DATE(fecha) >= DATE('now','localtime','start of month')",
             total: null
         };
         // Prospectos nuevos: campo 'fechaRegistro'
-        const FILTROS_CLI = {
+        const FILTROS_CLI = db.isPostgres ? {
+            dia: "COALESCE(fechaRegistro, fechaUltimaEtapa)::date = CURRENT_DATE",
+            semana: "COALESCE(fechaRegistro, fechaUltimaEtapa)::date >= CURRENT_DATE - INTERVAL '6 days'",
+            mes: "COALESCE(fechaRegistro, fechaUltimaEtapa)::date >= date_trunc('month', CURRENT_DATE)",
+            total: null
+        } : {
             dia: "(DATE(fechaRegistro) = DATE('now','localtime') OR (fechaRegistro IS NULL AND DATE(fechaUltimaEtapa) = DATE('now','localtime')))",
             semana: "(DATE(fechaRegistro) >= DATE('now','localtime','-6 days') OR (fechaRegistro IS NULL AND DATE(fechaUltimaEtapa) >= DATE('now','localtime','-6 days')))",
             mes: "(DATE(fechaRegistro) >= DATE('now','localtime','start of month') OR (fechaRegistro IS NULL AND DATE(fechaUltimaEtapa) >= DATE('now','localtime','start of month')))",
             total: null
         };
         // Reuniones agendadas: campo 'fechaUltimaEtapa' (momento en que se pasó a reunion_agendada)
-        const FILTROS_REUNION = {
+        const FILTROS_REUNION = db.isPostgres ? {
+            dia: "fechaUltimaEtapa::date = CURRENT_DATE",
+            semana: "fechaUltimaEtapa::date >= CURRENT_DATE - INTERVAL '6 days'",
+            mes: "fechaUltimaEtapa::date >= date_trunc('month', CURRENT_DATE)",
+            total: null
+        } : {
             dia: "DATE(fechaUltimaEtapa) = DATE('now','localtime')",
             semana: "DATE(fechaUltimaEtapa) >= DATE('now','localtime','-6 days')",
             mes: "DATE(fechaUltimaEtapa) >= DATE('now','localtime','start of month')",
@@ -131,9 +157,9 @@ router.get('/dashboard', [auth, esProspector], async (req, res) => {
 
         const periodos = {};
         for (const key of ['dia', 'semana', 'mes', 'total']) {
-            const { llamadas, mensajes } = calcularPeriodoActividades(db, prospectorId, FILTROS_ACT[key]);
-            const prospectos = calcularPeriodoClientes(db, prospectorId, FILTROS_CLI[key]);
-            const reuniones = calcularPeriodoReuniones(db, prospectorId, FILTROS_REUNION[key]);
+            const { llamadas, mensajes } = await calcularPeriodoActividades(prospectorId, FILTROS_ACT[key]);
+            const prospectos = await calcularPeriodoClientes(prospectorId, FILTROS_CLI[key]);
+            const reuniones = await calcularPeriodoReuniones(prospectorId, FILTROS_REUNION[key]);
             periodos[key] = { llamadas, mensajes, prospectos, reuniones };
         }
 
@@ -173,7 +199,7 @@ router.get('/prospectos', [auth, esProspector], async (req, res) => {
         }
         sql += ' ORDER BY c.fechaUltimaEtapa DESC';
 
-        const rows = db.prepare(sql).all(...params);
+        const rows = await dbHelper.getAll(sql, params);
         const prospectos = rows.map(r => {
             const { closerNombre, ...c } = r;
             const out = toMongoFormat(c);
@@ -204,7 +230,7 @@ router.get('/clientes-ganados', [auth, esProspector], async (req, res) => {
         }
         sql += ' ORDER BY c.fechaUltimaEtapa DESC';
 
-        const rows = db.prepare(sql).all(...params);
+        const rows = await dbHelper.getAll(sql, params);
         const clientes = rows.map(r => {
             const { closerNombre, ...c } = r;
             const out = toMongoFormat(c);
@@ -232,24 +258,24 @@ router.post('/crear-prospecto', [auth, esProspector], async (req, res) => {
         const closerId = rol === 'closer' ? prospectorId : null;
         const now = new Date().toISOString();
 
-        const stmt = db.prepare(`
-            INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, notas, vendedorAsignado, prospectorAsignado, closerAsignado, etapaEmbudo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'prospecto_nuevo')
-        `);
-        const result = stmt.run(
-            nombres.trim(),
-            (apellidoPaterno || '').trim(),
-            (apellidoMaterno || '').trim(),
-            String(telefono).trim(),
-            String(correo || '').trim().toLowerCase(),
-            (empresa || '').trim(),
-            (notas || '').trim(),
-            prospectorId,
-            prospectorId,
-            closerId
+        await dbHelper.run(
+            `INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, notas, vendedorAsignado, prospectorAsignado, closerAsignado, etapaEmbudo)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'prospecto_nuevo')`,
+            [
+                nombres.trim(),
+                (apellidoPaterno || '').trim(),
+                (apellidoMaterno || '').trim(),
+                String(telefono).trim(),
+                String(correo || '').trim().toLowerCase(),
+                (empresa || '').trim(),
+                (notas || '').trim(),
+                prospectorId,
+                prospectorId,
+                closerId
+            ]
         );
 
-        const row = db.prepare('SELECT * FROM clientes WHERE id = ?').get(result.lastInsertRowid);
+        const row = await dbHelper.getOne('SELECT * FROM clientes ORDER BY id DESC LIMIT 1');
         const cliente = toMongoFormat(row);
         if (cliente) cliente.prospectorAsignado = { nombre: req.usuario.nombre };
 
@@ -275,7 +301,7 @@ router.post('/registrar-actividad', [auth, esProspector], async (req, res) => {
         }
 
         const cid = parseInt(clienteId);
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(cid);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [cid]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Cliente no encontrado' });
         }
@@ -293,22 +319,25 @@ router.post('/registrar-actividad', [auth, esProspector], async (req, res) => {
         const resultadoFinal = resultado && resultadosValidos.includes(resultado) ? resultado : 'pendiente';
         const fechaActividad = tipo === 'cita' && fechaCita ? new Date(fechaCita).toISOString() : new Date().toISOString();
 
-        const ins = db.prepare(`
-            INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(tipo, prospectorId, cid, fechaActividad, descripcion || `${tipo} registrada`, resultadoFinal, notas || '');
+        await dbHelper.run(
+            `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [tipo, prospectorId, cid, fechaActividad, descripcion || `${tipo} registrada`, resultadoFinal, notas || '']
+        );
 
         const now = new Date().toISOString();
-        db.prepare('UPDATE clientes SET ultimaInteraccion = ? WHERE id = ?').run(now, cid);
+        await dbHelper.run('UPDATE clientes SET ultimaInteraccion = ? WHERE id = ?', [now, cid]);
 
         if (tipo === 'llamada' && resultadoFinal === 'exitoso' && cliente.etapaEmbudo === 'prospecto_nuevo') {
             const hist = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
             hist.push({ etapa: 'en_contacto', fecha: now, vendedor: prospectorId });
-            db.prepare('UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, historialEmbudo = ? WHERE id = ?')
-                .run('en_contacto', now, JSON.stringify(hist), cid);
+            await dbHelper.run(
+                'UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, historialEmbudo = ? WHERE id = ?',
+                ['en_contacto', now, JSON.stringify(hist), cid]
+            );
         }
 
-        const actRow = db.prepare('SELECT * FROM actividades WHERE id = ?').get(ins.lastInsertRowid);
+        const actRow = await dbHelper.getOne('SELECT * FROM actividades ORDER BY id DESC LIMIT 1');
         const actividad = toMongoFormat(actRow);
         if (actividad) actividad.cliente = { nombres: cliente.nombres, apellidoPaterno: cliente.apellidoPaterno, empresa: cliente.empresa };
 
@@ -327,7 +356,7 @@ router.get('/prospecto/:id/historial-completo', [auth, esProspector], async (req
         const usuarioId = parseInt(req.usuario.id);
 
         // Obtener cliente
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(prospectoId);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [prospectoId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
@@ -342,13 +371,13 @@ router.get('/prospecto/:id/historial-completo', [auth, esProspector], async (req
         }
 
         // Obtener TODAS las actividades del cliente (de todos los vendedores que han trabajado en él)
-        const actividades = db.prepare(`
+        const actividades = await dbHelper.getAll(`
             SELECT a.*, u.nombre as vendedorNombre, u.rol as vendedorRol
             FROM actividades a
             LEFT JOIN usuarios u ON a.vendedor = u.id
             WHERE a.cliente = ?
             ORDER BY a.fecha ASC
-        `).all(prospectoId);
+        `, [prospectoId]);
 
         // Obtener historial del embudo
         const historialEmbudo = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
@@ -422,13 +451,13 @@ router.get('/actividades-hoy', [auth, esProspector], async (req, res) => {
         const hoyInicio = new Date().toISOString().slice(0, 10) + ' 00:00:00';
         const hoyFin = new Date().toISOString().slice(0, 10) + ' 23:59:59';
 
-        const rows = db.prepare(`
+        const rows = await dbHelper.getAll(`
             SELECT a.*, c.nombres as c_nombres, c.apellidoPaterno as c_apellidoPaterno, c.empresa as c_empresa, c.telefono as c_telefono
             FROM actividades a
             JOIN clientes c ON a.cliente = c.id
             WHERE a.vendedor = ? AND a.fecha >= ? AND a.fecha <= ?
             ORDER BY a.fecha DESC
-        `).all(prospectorId, hoyInicio, hoyFin);
+        `, [prospectorId, hoyInicio, hoyFin]);
 
         const actividades = rows.map(r => ({
             ...r,
@@ -455,16 +484,16 @@ router.get('/prospectos/:id/actividades', auth, async (req, res) => {
         const rol = String(req.usuario.rol).toLowerCase();
 
         // Verificar acceso (solo comprobar que exista el prospecto)
-        const cliente = db.prepare('SELECT id FROM clientes WHERE id = ?').get(prospectoId);
+        const cliente = await dbHelper.getOne('SELECT id FROM clientes WHERE id = ?', [prospectoId]);
         if (!cliente) return res.status(404).json({ msg: 'Prospecto no encontrado' });
 
-        const actividades = db.prepare(`
+        const actividades = await dbHelper.getAll(`
             SELECT a.*, u.nombre as vendedorNombre 
             FROM actividades a
             LEFT JOIN usuarios u ON a.vendedor = u.id
             WHERE a.cliente = ?
             ORDER BY a.fecha DESC
-        `).all(prospectoId);
+        `, [prospectoId]);
 
         res.json(actividades);
     } catch (error) {
@@ -487,7 +516,7 @@ router.put('/prospectos/:id', auth, async (req, res) => {
 
         if (updates.length > 0) {
             params.push(prospectoId);
-            db.prepare(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+            await dbHelper.run(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`, params);
         }
 
         res.json({ msg: 'Prospecto actualizado' });
@@ -508,25 +537,26 @@ router.put('/prospectos/:id/editar', [auth, esProspector], async (req, res) => {
             return res.status(400).json({ msg: 'Nombres y teléfono son requeridos' });
         }
 
-        const cliente = db.prepare('SELECT id, prospectorAsignado FROM clientes WHERE id = ?').get(prospectoId);
+        const cliente = await dbHelper.getOne('SELECT id, prospectorAsignado FROM clientes WHERE id = ?', [prospectoId]);
         if (!cliente) return res.status(404).json({ msg: 'Prospecto no encontrado' });
         if (cliente.prospectorAsignado !== prospectorId) return res.status(403).json({ msg: 'No tienes permiso para editar este prospecto' });
 
-        db.prepare(`
-            UPDATE clientes 
-            SET nombres = ?, apellidoPaterno = ?, apellidoMaterno = ?, telefono = ?, correo = ?, empresa = ?, notas = ?, interes = ?, proximaLlamada = ?
-            WHERE id = ?
-        `).run(
-            nombres.trim(),
-            (apellidoPaterno || '').trim(),
-            (apellidoMaterno || '').trim(),
-            String(telefono).trim(),
-            String(correo || '').trim().toLowerCase(),
-            (empresa || '').trim(),
-            (notas || '').trim(),
-            req.body.interes !== undefined ? req.body.interes : 0,
-            req.body.proximaLlamada || null,
-            prospectoId
+        await dbHelper.run(
+            `UPDATE clientes 
+             SET nombres = ?, apellidoPaterno = ?, apellidoMaterno = ?, telefono = ?, correo = ?, empresa = ?, notas = ?, interes = ?, proximaLlamada = ?
+             WHERE id = ?`,
+            [
+                nombres.trim(),
+                (apellidoPaterno || '').trim(),
+                (apellidoMaterno || '').trim(),
+                String(telefono).trim(),
+                String(correo || '').trim().toLowerCase(),
+                (empresa || '').trim(),
+                (notas || '').trim(),
+                req.body.interes !== undefined ? req.body.interes : 0,
+                req.body.proximaLlamada || null,
+                prospectoId
+            ]
         );
 
         res.json({ msg: 'Prospecto actualizado exitosamente' });
@@ -546,7 +576,7 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
 
         const cid = parseInt(clienteId);
         const closerIdNum = parseInt(closerId);
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(cid);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [cid]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Cliente no encontrado' });
         }
@@ -560,10 +590,11 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
         const hist = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
         hist.push({ etapa: 'reunion_agendada', fecha: now, vendedor: prospectorId });
 
-        db.prepare(`
-            UPDATE clientes SET etapaEmbudo = ?, closerAsignado = ?, fechaTransferencia = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ?
-            WHERE id = ?
-        `).run('reunion_agendada', closerIdNum, now, now, now, JSON.stringify(hist), cid);
+        await dbHelper.run(
+            `UPDATE clientes SET etapaEmbudo = ?, closerAsignado = ?, fechaTransferencia = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ?
+             WHERE id = ?`,
+            ['reunion_agendada', closerIdNum, now, now, now, JSON.stringify(hist), cid]
+        );
 
         const fechaReunionISO = new Date(fechaReunion).toISOString();
         const finReunionISO = new Date(new Date(fechaReunion).getTime() + 45 * 60000).toISOString();
@@ -571,7 +602,10 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
         // ** GOOGLE CALENDAR INTEGRATION **
         let hangoutLink = null;
         try {
-            const closerDetails = db.prepare('SELECT email, googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = ?').get(closerIdNum);
+            const closerDetails = await dbHelper.getOne(
+                'SELECT email, googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = ?',
+                [closerIdNum]
+            );
 
             if (closerDetails && (closerDetails.googleRefreshToken || closerDetails.googleAccessToken)) {
                 const { OAuth2Client } = require('google-auth-library');
@@ -597,7 +631,7 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
 
                     if (updateStr.length > 0) {
                         params.push(closerIdNum);
-                        db.prepare(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`).run(...params);
+                        await dbHelper.run(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`, params);
                     }
                 });
 
@@ -636,13 +670,14 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
         // ** END GOOGLE CALENDAR INTEGRATION **
 
 
-        db.prepare(`
-            INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas, cambioEtapa, etapaAnterior, etapaNueva)
-            VALUES (?, ?, ?, ?, ?, 'pendiente', ?, 1, 'en_contacto', 'reunion_agendada')
-        `).run('cita', prospectorId, cid, fechaReunionISO, `Reunión agendada por prospector ${req.usuario.nombre} → Asignada a closer`, notas || '');
+        await dbHelper.run(
+            `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas, cambioEtapa, etapaAnterior, etapaNueva)
+             VALUES (?, ?, ?, ?, ?, 'pendiente', ?, 1, 'en_contacto', 'reunion_agendada')`,
+            ['cita', prospectorId, cid, fechaReunionISO, `Reunión agendada por prospector ${req.usuario.nombre} → Asignada a closer`, notas || '']
+        );
 
-        const clienteActualizado = db.prepare('SELECT * FROM clientes WHERE id = ?').get(cid);
-        const actividadRow = db.prepare('SELECT * FROM actividades WHERE cliente = ? ORDER BY id DESC LIMIT 1').get(cid);
+        const clienteActualizado = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [cid]);
+        const actividadRow = await dbHelper.getOne('SELECT * FROM actividades WHERE cliente = ? ORDER BY id DESC LIMIT 1', [cid]);
 
         res.json({
             msg: 'Reunión agendada exitosamente',
@@ -660,8 +695,8 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
 router.get('/estadisticas', [auth, esProspector], async (req, res) => {
     try {
         const prospectorId = parseInt(req.usuario.id);
-        const clientes = db.prepare('SELECT * FROM clientes WHERE prospectorAsignado = ?').all(prospectorId);
-        const actividades = db.prepare('SELECT * FROM actividades WHERE vendedor = ?').all(prospectorId);
+        const clientes = await dbHelper.getAll('SELECT * FROM clientes WHERE prospectorAsignado = ?', [prospectorId]);
+        const actividades = await dbHelper.getAll('SELECT * FROM actividades WHERE vendedor = ?', [prospectorId]);
 
         // Filtrar solo clientes activos (excluir perdidos y ventas ganadas)
         const clientesActivos = clientes.filter(c => 
@@ -704,7 +739,7 @@ router.post('/pasar-a-cliente/:id', [auth, esProspector], async (req, res) => {
         const clienteId = parseInt(req.params.id);
         const prospectorId = parseInt(req.usuario.id);
 
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(clienteId);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [clienteId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
@@ -716,17 +751,20 @@ router.post('/pasar-a-cliente/:id', [auth, esProspector], async (req, res) => {
         const now = new Date().toISOString();
 
         // Registrar la actividad de conversión
-        db.prepare(`
-            INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run('prospecto', prospectorId, clienteId, now, 'Prospecto convertido a cliente', 'exitoso', notas || 'Convertido a cliente');
+        await dbHelper.run(
+            `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            ['prospecto', prospectorId, clienteId, now, 'Prospecto convertido a cliente', 'exitoso', notas || 'Convertido a cliente']
+        );
 
         // Actualizar etapa del prospecto
         const hist = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
         hist.push({ etapa: 'venta_ganada', fecha: now, vendedor: prospectorId });
 
-        db.prepare('UPDATE clientes SET etapaEmbudo = ?, estado = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?')
-            .run('venta_ganada', 'ganado', now, now, JSON.stringify(hist), clienteId);
+        await dbHelper.run(
+            'UPDATE clientes SET etapaEmbudo = ?, estado = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?',
+            ['venta_ganada', 'ganado', now, now, JSON.stringify(hist), clienteId]
+        );
 
         res.json({ msg: '✓ Prospecto convertido a cliente' });
     } catch (error) {
@@ -742,7 +780,7 @@ router.post('/descartar-prospecto/:id', [auth, esProspector], async (req, res) =
         const clienteId = parseInt(req.params.id);
         const prospectorId = parseInt(req.usuario.id);
 
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(clienteId);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [clienteId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
@@ -754,17 +792,20 @@ router.post('/descartar-prospecto/:id', [auth, esProspector], async (req, res) =
         const now = new Date().toISOString();
 
         // Registrar la actividad de descarte
-        db.prepare(`
-            INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run('prospecto', prospectorId, clienteId, now, 'Prospecto descartado', 'fallido', notas || 'Descartado');
+        await dbHelper.run(
+            `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            ['prospecto', prospectorId, clienteId, now, 'Prospecto descartado', 'fallido', notas || 'Descartado']
+        );
 
         // Actualizar etapa del prospecto
         const hist = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
         hist.push({ etapa: 'perdido', fecha: now, vendedor: prospectorId });
 
-        db.prepare('UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?')
-            .run('perdido', now, now, JSON.stringify(hist), clienteId);
+        await dbHelper.run(
+            'UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?',
+            ['perdido', now, now, JSON.stringify(hist), clienteId]
+        );
 
         res.json({ msg: '✓ Prospecto descartado' });
     } catch (error) {
@@ -780,10 +821,11 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
         const ahora = new Date();
 
         // Función auxiliar para obtener actividades en un período
-        const getActividades = (inicio, fin) => {
-            const actividades = db.prepare(`
-                SELECT * FROM actividades WHERE vendedor = ? AND fecha >= ? AND fecha < ?
-            `).all(prospectorId, inicio.toISOString(), fin.toISOString());
+        const getActividades = async (inicio, fin) => {
+            const actividades = await dbHelper.getAll(
+                'SELECT * FROM actividades WHERE vendedor = ? AND fecha >= ? AND fecha < ?',
+                [prospectorId, inicio.toISOString(), fin.toISOString()]
+            );
             return actividades || [];
         };
 
@@ -798,54 +840,65 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
         const finMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth(), 0, 23, 59, 59);
 
         // Clientes totales
-        const ClientesTotales = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ?').get(prospectorId).c || 0;
-        const clientesHoy = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND date(fechaRegistro) = date(?)')
-            .get(prospectorId, hoy.toISOString()).c || 0;
+        const clientesTotalesRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ?', [prospectorId]);
+        const clientesHoyRow = await dbHelper.getOne(
+            'SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND date(fechaRegistro) = date(?)',
+            [prospectorId, hoy.toISOString()]
+        );
+        const ClientesTotales = clientesTotalesRow?.c || 0;
+        const clientesHoy = clientesHoyRow?.c || 0;
 
         // Actividades hoy
-        const actividadesHoy = getActividades(hoy, new Date(hoy.getTime() + 24 * 60 * 60 * 1000));
+        const actividadesHoy = await getActividades(hoy, new Date(hoy.getTime() + 24 * 60 * 60 * 1000));
         const llamadasHoy = actividadesHoy.filter(a => a.tipo === 'llamada').length;
         const llamadasExitosasHoy = actividadesHoy.filter(a => a.tipo === 'llamada' && a.resultado === 'exitoso').length;
 
         // Actividades semana
         const inicioSemanaFin = new Date(inicioSemana.getTime() + 7 * 24 * 60 * 60 * 1000);
-        const actividadesSemana = getActividades(inicioSemana, inicioSemanaFin);
+        const actividadesSemana = await getActividades(inicioSemana, inicioSemanaFin);
         const llamadasSemana = actividadesSemana.filter(a => a.tipo === 'llamada').length;
         const llamadasExitosasSemana = actividadesSemana.filter(a => a.tipo === 'llamada' && a.resultado === 'exitoso').length;
 
         // Actividades mes
         const finMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0, 23, 59, 59);
-        const actividadesMes = getActividades(inicioMes, finMes);
+        const actividadesMes = await getActividades(inicioMes, finMes);
         const llamadasMes = actividadesMes.filter(a => a.tipo === 'llamada').length;
         const llamadasExitosasMes = actividadesMes.filter(a => a.tipo === 'llamada' && a.resultado === 'exitoso').length;
 
         // Actividades mes anterior
-        const actividadesMesAnterior = getActividades(inicioMesAnterior, finMesAnterior);
+        const actividadesMesAnterior = await getActividades(inicioMesAnterior, finMesAnterior);
         const llamadasMesAnterior = actividadesMesAnterior.filter(a => a.tipo === 'llamada').length;
 
         // Citas agendadas
-        const citasAgendadasMes = db.prepare(`
-            SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-            AND etapaEmbudo = 'reunion_agendada' AND date(fechaUltimaEtapa) >= date(?) AND date(fechaUltimaEtapa) <= date(?)
-        `).get(prospectorId, inicioMes.toISOString(), finMes.toISOString()).c || 0;
+        const citasAgendadasMesRow = await dbHelper.getOne(
+            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
+             AND etapaEmbudo = 'reunion_agendada' AND date(fechaUltimaEtapa) >= date(?) AND date(fechaUltimaEtapa) <= date(?)`,
+            [prospectorId, inicioMes.toISOString(), finMes.toISOString()]
+        );
 
-        const citasAgendadasMesAnterior = db.prepare(`
-            SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-            AND etapaEmbudo = 'reunion_agendada' AND date(fechaUltimaEtapa) >= date(?) AND date(fechaUltimaEtapa) <= date(?)
-        `).get(prospectorId, inicioMesAnterior.toISOString(), finMesAnterior.toISOString()).c || 0;
+        const citasAgendadasMesAnteriorRow = await dbHelper.getOne(
+            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
+             AND etapaEmbudo = 'reunion_agendada' AND date(fechaUltimaEtapa) >= date(?) AND date(fechaUltimaEtapa) <= date(?)`,
+            [prospectorId, inicioMesAnterior.toISOString(), finMesAnterior.toISOString()]
+        );
+
+        const citasAgendadasMes = citasAgendadasMesRow?.c || 0;
+        const citasAgendadasMesAnterior = citasAgendadasMesAnteriorRow?.c || 0;
 
         // Transferencias
-        const transferidosMes = db.prepare(`
-            SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-            AND closerAsignado IS NOT NULL AND date(fechaTransferencia) >= date(?) AND date(fechaTransferencia) <= date(?)
-        `).get(prospectorId, inicioMes.toISOString(), finMes.toISOString()).c || 0;
+        const transferidosMesRow = await dbHelper.getOne(
+            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
+             AND closerAsignado IS NOT NULL AND date(fechaTransferencia) >= date(?) AND date(fechaTransferencia) <= date(?)`,
+            [prospectorId, inicioMes.toISOString(), finMes.toISOString()]
+        );
+        const transferidosMes = transferidosMesRow?.c || 0;
 
         // Distribución actual
         const distribucion = {
-            prospecto_nuevo: db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?').get(prospectorId, 'prospecto_nuevo').c || 0,
-            en_contacto: db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?').get(prospectorId, 'en_contacto').c || 0,
-            reunion_agendada: db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?').get(prospectorId, 'reunion_agendada').c || 0,
-            transferidos: db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND closerAsignado IS NOT NULL').get(prospectorId).c || 0
+            prospecto_nuevo: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?', [prospectorId, 'prospecto_nuevo']))?.c || 0,
+            en_contacto: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?', [prospectorId, 'en_contacto']))?.c || 0,
+            reunion_agendada: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?', [prospectorId, 'reunion_agendada']))?.c || 0,
+            transferidos: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND closerAsignado IS NOT NULL', [prospectorId]))?.c || 0
         };
 
         // Tasas de conversión
@@ -871,13 +924,15 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
             finSemanaI.setDate(inicioSemanaI.getDate() + 6);
             finSemanaI.setHours(23, 59, 59, 999);
 
-            const actividadesSemanaI = getActividades(inicioSemanaI, finSemanaI);
+            const actividadesSemanaI = await getActividades(inicioSemanaI, finSemanaI);
             const llamadasSemanaI = actividadesSemanaI.filter(a => a.tipo === 'llamada').length;
             const contactosSemanaI = actividadesSemanaI.filter(a => a.tipo === 'llamada' && a.resultado === 'exitoso').length;
-            const citasSemanaI = db.prepare(`
-                SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-                AND etapaEmbudo = 'reunion_agendada' AND fechaUltimaEtapa >= ? AND fechaUltimaEtapa <= ?
-            `).get(prospectorId, inicioSemanaI.toISOString(), finSemanaI.toISOString()).c || 0;
+            const citasSemanaIRow = await dbHelper.getOne(
+                `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
+                 AND etapaEmbudo = 'reunion_agendada' AND fechaUltimaEtapa >= ? AND fechaUltimaEtapa <= ?`,
+                [prospectorId, inicioSemanaI.toISOString(), finSemanaI.toISOString()]
+            );
+            const citasSemanaI = citasSemanaIRow?.c || 0;
 
             const semanaNum = i + 1;
             const fecha = new Date(inicioSemanaI);

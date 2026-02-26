@@ -15,6 +15,15 @@ if (process.env.DATABASE_URL) {
   
   console.log(`\n🔧 Conectando a PostgreSQL en Railway...`);
   
+  const normalizeSql = (sql) => {
+    if (!sql.includes('?')) {
+      return sql;
+    }
+
+    let index = 0;
+    return sql.replace(/\?/g, () => `$${++index}`);
+  };
+
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
@@ -40,7 +49,7 @@ if (process.env.DATABASE_URL) {
           const params = typeof param === 'object' ? 
             (Array.isArray(param) ? param : Object.values(param)) : 
             [param];
-          const result = await pool.query(sql, params);
+          const result = await pool.query(normalizeSql(sql), params);
           return result.rows[0] || null;
         } catch (error) {
           console.error('❌ Error en prepare.get():', error);
@@ -50,7 +59,7 @@ if (process.env.DATABASE_URL) {
       all: async (...params) => {
         try {
           const flatParams = params.flat();
-          const result = await pool.query(sql, flatParams);
+          const result = await pool.query(normalizeSql(sql), flatParams);
           return result.rows;
         } catch (error) {
           console.error('❌ Error en prepare.all():', error);
@@ -60,7 +69,7 @@ if (process.env.DATABASE_URL) {
       run: async (...params) => {
         try {
           const flatParams = params.flat();
-          const result = await pool.query(sql, flatParams);
+          const result = await pool.query(normalizeSql(sql), flatParams);
           return {
             lastID: result.rows[0]?.id,
             changes: result.rowCount
