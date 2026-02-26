@@ -1,10 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
 // Inicializar base de datos
 require('./config/database');
+const { initializeDatabase } = require('./init-database');
+
+// Inicializar schema y datos
+initializeDatabase().catch(err => console.error('Error en init:', err));
 
 const app = express();
 
