@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { OAuth2Client } = require('google-auth-library');
 const { google } = require('googleapis');
-const db = require('../config/database');
+const dbHelper = require('../config/db-helper');
 const { auth } = require('../middleware/auth');
+const { buildUpdate } = require('../lib/query-builder');
 
 const oAuth2Client = new OAuth2Client(
     process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
@@ -22,25 +23,14 @@ router.post('/save-tokens', auth, async (req, res) => {
         const { tokens } = await oAuth2Client.getToken(code);
 
         const userId = parseInt(req.usuario.id);
-        const updates = [];
-        const params = [];
+        const updates = {};
+        if (tokens.refresh_token) updates.googleRefreshToken = tokens.refresh_token;
+        if (tokens.access_token) updates.googleAccessToken = tokens.access_token;
+        if (tokens.expiry_date) updates.googleTokenExpiry = tokens.expiry_date;
 
-        if (tokens.refresh_token) {
-            updates.push('googleRefreshToken = ?');
-            params.push(tokens.refresh_token);
-        }
-        if (tokens.access_token) {
-            updates.push('googleAccessToken = ?');
-            params.push(tokens.access_token);
-        }
-        if (tokens.expiry_date) {
-            updates.push('googleTokenExpiry = ?');
-            params.push(tokens.expiry_date);
-        }
-
-        if (updates.length > 0) {
-            params.push(userId);
-            db.prepare(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+        if (Object.keys(updates).length > 0) {
+            const { sql, params } = buildUpdate('usuarios', updates, { id: userId });
+            await dbHelper.run(sql, params);
         }
 
         res.json({ msg: 'Tokens guardados con éxito' });
@@ -56,7 +46,7 @@ router.post('/save-tokens', auth, async (req, res) => {
 router.get('/freebusy/:closerId', auth, async (req, res) => {
     try {
         const closerId = parseInt(req.params.closerId);
-        const closer = db.prepare('SELECT email, googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = ?').get(closerId);
+        const closer = await dbHelper.getOne('SELECT email, googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = $1', [closerId]);
 
         if (!closer) return res.status(404).json({ msg: 'Closer no encontrado' });
         if (!closer.googleRefreshToken && !closer.googleAccessToken) {
@@ -78,15 +68,14 @@ router.get('/freebusy/:closerId', auth, async (req, res) => {
         // Verificar si necesita refresh (auth-library handlea auto-refresh si hay refresh_token)
         // Para estar seguros, forzamos el token si se renueva:
         client.on('tokens', (tokens) => {
-            let updateStr = [];
-            let params = [];
-            if (tokens.refresh_token) { updateStr.push('googleRefreshToken = ?'); params.push(tokens.refresh_token); }
-            if (tokens.access_token) { updateStr.push('googleAccessToken = ?'); params.push(tokens.access_token); }
-            if (tokens.expiry_date) { updateStr.push('googleTokenExpiry = ?'); params.push(tokens.expiry_date); }
+            const updates = {};
+            if (tokens.refresh_token) updates.googleRefreshToken = tokens.refresh_token;
+            if (tokens.access_token) updates.googleAccessToken = tokens.access_token;
+            if (tokens.expiry_date) updates.googleTokenExpiry = tokens.expiry_date;
 
-            if (updateStr.length > 0) {
-                params.push(closerId);
-                db.prepare(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`).run(...params);
+            if (Object.keys(updates).length > 0) {
+                const { sql, params } = buildUpdate('usuarios', updates, { id: closerId });
+                dbHelper.run(sql, params);
             }
         });
 
@@ -120,7 +109,7 @@ router.get('/freebusy/:closerId', auth, async (req, res) => {
 router.get('/events', auth, async (req, res) => {
     try {
         const userId = parseInt(req.usuario.id);
-        const user = db.prepare('SELECT googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = ?').get(userId);
+        const user = await dbHelper.getOne('SELECT googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = $1', [userId]);
 
         if (!user || (!user.googleRefreshToken && !user.googleAccessToken)) {
             return res.status(400).json({ msg: 'No se ha vinculado Google Calendar', notLinked: true });
@@ -138,15 +127,14 @@ router.get('/events', auth, async (req, res) => {
         });
 
         client.on('tokens', (tokens) => {
-            let updateStr = [];
-            let params = [];
-            if (tokens.refresh_token) { updateStr.push('googleRefreshToken = ?'); params.push(tokens.refresh_token); }
-            if (tokens.access_token) { updateStr.push('googleAccessToken = ?'); params.push(tokens.access_token); }
-            if (tokens.expiry_date) { updateStr.push('googleTokenExpiry = ?'); params.push(tokens.expiry_date); }
+            const updates = {};
+            if (tokens.refresh_token) updates.googleRefreshToken = tokens.refresh_token;
+            if (tokens.access_token) updates.googleAccessToken = tokens.access_token;
+            if (tokens.expiry_date) updates.googleTokenExpiry = tokens.expiry_date;
 
-            if (updateStr.length > 0) {
-                params.push(userId);
-                db.prepare(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`).run(...params);
+            if (Object.keys(updates).length > 0) {
+                const { sql, params } = buildUpdate('usuarios', updates, { id: userId });
+                dbHelper.run(sql, params);
             }
         });
 
@@ -179,7 +167,7 @@ router.get('/events', auth, async (req, res) => {
 router.post('/create-event', auth, async (req, res) => {
     try {
         const userId = parseInt(req.usuario.id);
-        const user = db.prepare('SELECT googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = ?').get(userId);
+        const user = await dbHelper.getOne('SELECT googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = $1', [userId]);
 
         if (!user || (!user.googleRefreshToken && !user.googleAccessToken)) {
             return res.status(400).json({ msg: 'No se ha vinculado Google Calendar', notLinked: true });
@@ -202,14 +190,13 @@ router.post('/create-event', auth, async (req, res) => {
         });
 
         client.on('tokens', (tokens) => {
-            const updateStr = [];
-            const params = [];
-            if (tokens.refresh_token) { updateStr.push('googleRefreshToken = ?'); params.push(tokens.refresh_token); }
-            if (tokens.access_token) { updateStr.push('googleAccessToken = ?'); params.push(tokens.access_token); }
-            if (tokens.expiry_date) { updateStr.push('googleTokenExpiry = ?'); params.push(tokens.expiry_date); }
-            if (updateStr.length > 0) {
-                params.push(userId);
-                db.prepare(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`).run(...params);
+            const updates = {};
+            if (tokens.refresh_token) updates.googleRefreshToken = tokens.refresh_token;
+            if (tokens.access_token) updates.googleAccessToken = tokens.access_token;
+            if (tokens.expiry_date) updates.googleTokenExpiry = tokens.expiry_date;
+            if (Object.keys(updates).length > 0) {
+                const { sql, params } = buildUpdate('usuarios', updates, { id: userId });
+                dbHelper.run(sql, params);
             }
         });
 
@@ -235,9 +222,11 @@ router.post('/create-event', auth, async (req, res) => {
             const cid = parseInt(clienteId);
             const now = new Date().toISOString();
             try {
-                db.prepare('INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas) VALUES (?, ?, ?, ?, ?, ?, ?)')
-                    .run('cita', userId, cid, new Date(startDateTime).toISOString(), `Próxima reunión agendada: ${title}`, 'pendiente', description || '');
-                db.prepare('UPDATE clientes SET ultimaInteraccion = ? WHERE id = ?').run(now, cid);
+                await dbHelper.run(
+                    'INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+                    ['cita', userId, cid, new Date(startDateTime).toISOString(), `Próxima reunión agendada: ${title}`, 'pendiente', description || '']
+                );
+                await dbHelper.run('UPDATE clientes SET ultimaInteraccion = $1 WHERE id = $2', [now, cid]);
             } catch (dbErr) {
                 console.error('Error registrando actividad:', dbErr);
             }
@@ -268,7 +257,7 @@ router.patch('/mark-completed/:eventId', auth, async (req, res) => {
         }
 
         const userId = parseInt(req.usuario.id);
-        const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(userId);
+        const usuario = await dbHelper.getOne('SELECT * FROM usuarios WHERE id = $1', [userId]);
 
         if (!usuario || !usuario.googleAccessToken) {
             console.warn(`⚠️ Usuario ${userId} no tiene googleAccessToken`);

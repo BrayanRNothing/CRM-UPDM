@@ -23,11 +23,14 @@ function buildDynamicQuery(baseSql, conditions = []) {
 
   for (const cond of conditions) {
     if (cond.condition !== null && cond.condition !== undefined && cond.condition !== '') {
+      // Contar cuántos ? hay en la condición
+      const placeholderCount = (cond.sql.match(/\?/g) || []).length;
+      
       // Reemplazar ? con $N en la condición
       const condSql = cond.sql.replace(/\?/g, () => `$${paramIndex++}`);
       sql += condSql;
 
-      // Agregar el parámetro
+      // Agregar los parámetros
       if (Array.isArray(cond.values)) {
         params.push(...cond.values);
       } else {

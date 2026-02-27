@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const dbHelper = require('../config/db-helper');
 const { auth } = require('../middleware/auth');
 
 const esCloserOAdmin = (req, res, next) => {
@@ -68,37 +68,45 @@ router.get('/monitoring', [auth, esCloserOAdmin], async (req, res) => {
         const fechaInicioStr = fechaInicio.toISOString();
         const ahoraStr = ahora.toISOString();
 
-        const prospectors = db.prepare('SELECT id, nombre, email as correo FROM usuarios WHERE rol = ?').all('prospector');
-        const prospectorsConMetricas = prospectors.map((prospector) => {
+        const prospectors = await dbHelper.getAll('SELECT id, nombre, email as correo FROM usuarios WHERE rol = $1', ['prospector']);
+        const prospectorsConMetricas = [];
+
+        for (const prospector of prospectors) {
             const prospectorId = prospector.id;
-            const clientesTotales = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ?').get(prospectorId).c;
-            const clientesNuevos = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND date(fechaRegistro) >= date(?)').get(prospectorId, fechaInicioStr).c;
-            const actividades = db.prepare('SELECT * FROM actividades WHERE vendedor = ? AND fecha >= ? AND fecha <= ?').all(prospectorId, fechaInicioStr, ahoraStr);
+            const clientesTotalesRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1', [prospectorId]);
+            const clientesNuevosRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND fechaRegistro::date >= $2::date', [prospectorId, fechaInicioStr]);
+            const actividades = await dbHelper.getAll('SELECT * FROM actividades WHERE vendedor = $1 AND fecha >= $2 AND fecha <= $3', [prospectorId, fechaInicioStr, ahoraStr]);
 
             const llamadas = actividades.filter(a => a.tipo === 'llamada');
             const llamadasExitosas = llamadas.filter(a => a.resultado === 'exitoso');
             const mensajes = actividades.filter(a => ['mensaje', 'correo', 'whatsapp'].includes(a.tipo));
 
-            const citasAgendadas = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ? AND date(fechaUltimaEtapa) >= date(?)').get(prospectorId, 'reunion_agendada', fechaInicioStr).c;
-            const transferencias = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND closerAsignado IS NOT NULL AND date(fechaTransferencia) >= date(?)').get(prospectorId, fechaInicioStr).c;
+            const citasAgendadasRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2 AND fechaUltimaEtapa::date >= $3::date', [prospectorId, 'reunion_agendada', fechaInicioStr]);
+            const transferenciasRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND closerAsignado IS NOT NULL AND fechaTransferencia::date >= $2::date', [prospectorId, fechaInicioStr]);
+
+            const clientesTotales = clientesTotalesRow?.c || 0;
+            const clientesNuevos = clientesNuevosRow?.c || 0;
+            const citasAgendadas = citasAgendadasRow?.c || 0;
+            const transferencias = transferenciasRow?.c || 0;
 
             const rendimiento = calcularEstado(llamadas.length, citasAgendadas, periodo);
             const tasaContacto = llamadas.length > 0 ? ((llamadasExitosas.length / llamadas.length) * 100).toFixed(1) : 0;
             const tasaAgendamiento = llamadasExitosas.length > 0 ? ((citasAgendadas / llamadasExitosas.length) * 100).toFixed(1) : 0;
 
             const distribucion = {
-                prospecto_nuevo: db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?').get(prospectorId, 'prospecto_nuevo').c,
-                en_contacto: db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?').get(prospectorId, 'en_contacto').c,
-                reunion_agendada: db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?').get(prospectorId, 'reunion_agendada').c
+                prospecto_nuevo: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2', [prospectorId, 'prospecto_nuevo']))?.c || 0,
+                en_contacto: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2', [prospectorId, 'en_contacto']))?.c || 0,
+                reunion_agendada: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2', [prospectorId, 'reunion_agendada']))?.c || 0
             };
 
-            // NEW DETAILED METRICS for Hoy
-            const actsHoy = db.prepare('SELECT * FROM actividades WHERE vendedor = ? AND fecha >= ? AND fecha <= ?').all(prospectorId, hoyStr, ahoraStr);
+            const actsHoy = await dbHelper.getAll('SELECT * FROM actividades WHERE vendedor = $1 AND fecha >= $2 AND fecha <= $3', [prospectorId, hoyStr, ahoraStr]);
             const llamadasHoy = actsHoy.filter(a => a.tipo === 'llamada');
             const llamadasExitosasHoy = llamadasHoy.filter(a => a.resultado === 'exitoso');
             const mensajesHoy = actsHoy.filter(a => ['mensaje', 'correo', 'whatsapp'].includes(a.tipo));
-            const citasHoy = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ? AND date(fechaUltimaEtapa) >= date(?)').get(prospectorId, 'reunion_agendada', hoyStr).c;
-            const clientesNuevosHoy = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND date(fechaRegistro) >= date(?)').get(prospectorId, hoyStr).c;
+            const citasHoyRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2 AND fechaUltimaEtapa::date >= $3::date', [prospectorId, 'reunion_agendada', hoyStr]);
+            const clientesNuevosHoyRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND fechaRegistro::date >= $2::date', [prospectorId, hoyStr]);
+            const citasHoy = citasHoyRow?.c || 0;
+            const clientesNuevosHoy = clientesNuevosHoyRow?.c || 0;
             const rendimientoHoy = calcularEstado(llamadasHoy.length, citasHoy, 'diario');
 
             const detalleHoy = {
@@ -111,13 +119,14 @@ router.get('/monitoring', [auth, esCloserOAdmin], async (req, res) => {
                 color: rendimientoHoy.color
             };
 
-            // NEW DETAILED METRICS for Semana
-            const actsSemana = db.prepare('SELECT * FROM actividades WHERE vendedor = ? AND fecha >= ? AND fecha <= ?').all(prospectorId, semanaStr, ahoraStr);
+            const actsSemana = await dbHelper.getAll('SELECT * FROM actividades WHERE vendedor = $1 AND fecha >= $2 AND fecha <= $3', [prospectorId, semanaStr, ahoraStr]);
             const llamadasSemana = actsSemana.filter(a => a.tipo === 'llamada');
             const llamadasExitosasSemana = llamadasSemana.filter(a => a.resultado === 'exitoso');
             const mensajesSemana = actsSemana.filter(a => ['mensaje', 'correo', 'whatsapp'].includes(a.tipo));
-            const citasSemana = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ? AND date(fechaUltimaEtapa) >= date(?)').get(prospectorId, 'reunion_agendada', semanaStr).c;
-            const clientesNuevosSemana = db.prepare('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND date(fechaRegistro) >= date(?)').get(prospectorId, semanaStr).c;
+            const citasSemanaRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2 AND fechaUltimaEtapa::date >= $3::date', [prospectorId, 'reunion_agendada', semanaStr]);
+            const clientesNuevosSemanaRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND fechaRegistro::date >= $2::date', [prospectorId, semanaStr]);
+            const citasSemana = citasSemanaRow?.c || 0;
+            const clientesNuevosSemana = clientesNuevosSemanaRow?.c || 0;
             const rendimientoSemana = calcularEstado(llamadasSemana.length, citasSemana, 'semanal');
 
             const detalleSemana = {
@@ -130,7 +139,7 @@ router.get('/monitoring', [auth, esCloserOAdmin], async (req, res) => {
                 color: rendimientoSemana.color
             };
 
-            return {
+            prospectorsConMetricas.push({
                 prospector: { id: String(prospector.id), nombre: prospector.nombre, correo: prospector.correo || '' },
                 metricas: {
                     llamadas: { total: llamadas.length, exitosas: llamadasExitosas.length },
@@ -148,8 +157,8 @@ router.get('/monitoring', [auth, esCloserOAdmin], async (req, res) => {
                 periodo,
                 detalleHoy,
                 detalleSemana
-            };
-        });
+            });
+        }
 
         const ordenEstado = { 'excelente': 0, 'bueno': 1, 'bajo': 2, 'critico': 3, 'sin_datos': 4 };
         prospectorsConMetricas.sort((a, b) => ordenEstado[a.rendimiento.estado] - ordenEstado[b.rendimiento.estado]);

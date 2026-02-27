@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const db = require('../config/database');
 const dbHelper = require('../config/db-helper');
 const { auth, esSuperUser } = require('../middleware/auth');
+const { buildUpdate } = require('../lib/query-builder');
 
 // Helper para formatear respuesta (simulando lo que hacía toMongoFormat si es necesario, o simplificando)
 const formatUser = (row) => ({
@@ -47,23 +47,15 @@ router.post('/', auth, esSuperUser, async (req, res) => {
             return res.status(400).json({ mensaje: 'Complete los campos requeridos' });
         }
 
-        const existe = await dbHelper.getOne('SELECT id FROM usuarios WHERE usuario = ?', [usuario.trim()]);
+        const existe = await dbHelper.getOne('SELECT id FROM usuarios WHERE usuario = $1', [usuario.trim()]);
         if (existe) return res.status(400).json({ mensaje: 'Usuario ya existe' });
 
         const hash = await bcrypt.hash(contraseña, 10);
 
-        const info = await dbHelper.run(
-            'INSERT INTO usuarios (usuario, contraseña, rol, nombre, email, telefono) VALUES (?, ?, ?, ?, ?, ?) RETURNING *' +
-            (db.isPostgres ? '' : ' WHERE id = last_insert_rowid()'),
+        const row = await dbHelper.getOne(
+            'INSERT INTO usuarios (usuario, contraseña, rol, nombre, email, telefono) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [usuario.trim(), hash, rol, nombre.trim(), (email || '').trim(), (telefono || '').trim()]
         );
-
-        let row;
-        if (db.isPostgres) {
-            row = await dbHelper.getOne('SELECT * FROM usuarios WHERE id = $1', [info.lastID]);
-        } else {
-            row = await dbHelper.getOne('SELECT * FROM usuarios WHERE id = ?', [info.lastID]);
-        }
         
         res.status(201).json({ mensaje: 'Usuario creado', usuario: formatUser(row) });
     } catch (error) {
@@ -80,54 +72,22 @@ router.put('/:id', auth, esSuperUser, async (req, res) => {
         const { nombre, email, telefono, activo, contraseña, rol } = req.body;
         const id = parseInt(req.params.id);
 
-        const row = await dbHelper.getOne('SELECT * FROM usuarios WHERE id = ?', [id]);
+        const row = await dbHelper.getOne('SELECT * FROM usuarios WHERE id = $1', [id]);
         if (!row) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+        const updates = {};
+        if (nombre) updates.nombre = nombre;
+        if (email !== undefined) updates.email = email;
+        if (telefono !== undefined) updates.telefono = telefono;
+        if (activo !== undefined) updates.activo = activo ? 1 : 0;
+        if (rol) updates.rol = rol;
+        if (contraseña) updates.contraseña = await bcrypt.hash(contraseña, 10);
 
-        const updates = [];
-        const params = [];
-        let paramIndex = 1;
-
-        if (nombre) { 
-            updates.push(db.isPostgres ? `nombre = $${paramIndex}` : 'nombre = ?'); 
-            params.push(nombre); 
-            paramIndex++;
-        }
-        if (email !== undefined) { 
-            updates.push(db.isPostgres ? `email = $${paramIndex}` : 'email = ?'); 
-            params.push(email); 
-            paramIndex++;
-        }
-        if (telefono !== undefined) { 
-            updates.push(db.isPostgres ? `telefono = $${paramIndex}` : 'telefono = ?'); 
-            params.push(telefono); 
-            paramIndex++;
-        }
-        if (activo !== undefined) { 
-            updates.push(db.isPostgres ? `activo = $${paramIndex}` : 'activo = ?'); 
-            params.push(activo ? 1 : 0); 
-            paramIndex++;
-        }
-        if (rol) { 
-            updates.push(db.isPostgres ? `rol = $${paramIndex}` : 'rol = ?'); 
-            params.push(rol); 
-            paramIndex++;
-        }
-        if (contraseña) {
-            const hash = await bcrypt.hash(contraseña, 10);
-            updates.push(db.isPostgres ? `contraseña = $${paramIndex}` : 'contraseña = ?');
-            params.push(hash);
-            paramIndex++;
-        }
-
-        if (updates.length > 0) {
-            params.push(id);
-            const sql = db.isPostgres ? 
-                `UPDATE usuarios SET ${updates.join(', ')} WHERE id = $${paramIndex}` :
-                `UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`;
+        if (Object.keys(updates).length > 0) {
+            const { sql, params } = buildUpdate('usuarios', updates, { id });
             await dbHelper.run(sql, params);
         }
 
-        const updated = await dbHelper.getOne('SELECT * FROM usuarios WHERE id = ?', [id]);
+        const updated = await dbHelper.getOne('SELECT * FROM usuarios WHERE id = $1', [id]);
         res.json({ mensaje: 'Usuario actualizado', usuario: formatUser(updated) });
     } catch (error) {
         console.error("Error updating user:", error);
@@ -140,7 +100,7 @@ router.put('/:id', auth, esSuperUser, async (req, res) => {
 // @access  Private (Admin)
 router.delete('/:id', auth, esSuperUser, async (req, res) => {
     try {
-        await dbHelper.run('UPDATE usuarios SET activo = 0 WHERE id = ?', [parseInt(req.params.id)]);
+        await dbHelper.run('UPDATE usuarios SET activo = 0 WHERE id = $1', [parseInt(req.params.id)]);
         res.json({ mensaje: 'Usuario desactivado' });
     } catch (error) {
         res.status(500).json({ mensaje: 'Error del servidor' });

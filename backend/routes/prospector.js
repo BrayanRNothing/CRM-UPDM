@@ -3,7 +3,7 @@ const router = express.Router();
 const dbHelper = require('../config/db-helper');
 const { auth } = require('../middleware/auth');
 const { toMongoFormat, toMongoFormatMany } = require('../lib/helpers');
-const { buildDynamicQuery } = require('../lib/query-builder');
+const { buildDynamicQuery, buildUpdate } = require('../lib/query-builder');
 
 const esProspector = (req, res, next) => {
     const rol = String(req.usuario.rol).toLowerCase();
@@ -269,7 +269,7 @@ router.post('/crear-prospecto', [auth, esProspector], async (req, res) => {
         const cliente = toMongoFormat(result);
         if (cliente) cliente.prospectorAsignado = { nombre: req.usuario.nombre };
 
-        res.status(201).json({ msg: 'Prospecto creado', cliente: cliente || row });
+        res.status(201).json({ msg: 'Prospecto creado', cliente: cliente || result });
     } catch (error) {
         console.error('Error al crear prospecto:', error);
         res.status(500).json({ msg: 'Error del servidor' });
@@ -445,10 +445,10 @@ router.get('/actividades-hoy', [auth, esProspector], async (req, res) => {
         const hoyFin = new Date().toISOString().slice(0, 10) + ' 23:59:59';
 
         const rows = await dbHelper.getAll(`
-            SELECT a.*, c.nombres as c_nombres, c.apellidoPaterno as c_apellidoPaterno, c.empresa as c_empresa, c.telefono as c_telefono
+            SELECT a.*, c.id as c_id, c.nombres as c_nombres, c.apellidoPaterno as c_apellidoPaterno, c.empresa as c_empresa, c.telefono as c_telefono
             FROM actividades a
             JOIN clientes c ON a.cliente = c.id
-            WHERE a.vendedor = ? AND a.fecha >= ? AND a.fecha <= ?
+            WHERE a.vendedor = $1 AND a.fecha >= $2 AND a.fecha <= $3
             ORDER BY a.fecha DESC
         `, [prospectorId, hoyInicio, hoyFin]);
 
@@ -477,14 +477,14 @@ router.get('/prospectos/:id/actividades', auth, async (req, res) => {
         const rol = String(req.usuario.rol).toLowerCase();
 
         // Verificar acceso (solo comprobar que exista el prospecto)
-        const cliente = await dbHelper.getOne('SELECT id FROM clientes WHERE id = ?', [prospectoId]);
+        const cliente = await dbHelper.getOne('SELECT id FROM clientes WHERE id = $1', [prospectoId]);
         if (!cliente) return res.status(404).json({ msg: 'Prospecto no encontrado' });
 
         const actividades = await dbHelper.getAll(`
             SELECT a.*, u.nombre as vendedorNombre 
             FROM actividades a
             LEFT JOIN usuarios u ON a.vendedor = u.id
-            WHERE a.cliente = ?
+            WHERE a.cliente = $1
             ORDER BY a.fecha DESC
         `, [prospectoId]);
 
@@ -501,15 +501,13 @@ router.put('/prospectos/:id', auth, async (req, res) => {
         const prospectoId = parseInt(req.params.id);
         const { interes, proximaLlamada } = req.body;
 
-        const updates = [];
-        const params = [];
+        const updates = {};
+        if (interes !== undefined) updates.interes = interes;
+        if (proximaLlamada !== undefined) updates.proximaLlamada = proximaLlamada;
 
-        if (interes !== undefined) { updates.push('interes = ?'); params.push(interes); }
-        if (proximaLlamada !== undefined) { updates.push('proximaLlamada = ?'); params.push(proximaLlamada); }
-
-        if (updates.length > 0) {
-            params.push(prospectoId);
-            await dbHelper.run(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`, params);
+        if (Object.keys(updates).length > 0) {
+            const { sql, params } = buildUpdate('clientes', updates, { id: prospectoId });
+            await dbHelper.run(sql, params);
         }
 
         res.json({ msg: 'Prospecto actualizado' });
@@ -530,14 +528,14 @@ router.put('/prospectos/:id/editar', [auth, esProspector], async (req, res) => {
             return res.status(400).json({ msg: 'Nombres y teléfono son requeridos' });
         }
 
-        const cliente = await dbHelper.getOne('SELECT id, prospectorAsignado FROM clientes WHERE id = ?', [prospectoId]);
+        const cliente = await dbHelper.getOne('SELECT id, prospectorAsignado FROM clientes WHERE id = $1', [prospectoId]);
         if (!cliente) return res.status(404).json({ msg: 'Prospecto no encontrado' });
-        if (cliente.prospectorAsignado !== prospectorId) return res.status(403).json({ msg: 'No tienes permiso para editar este prospecto' });
+        if (parseInt(cliente.prospectorAsignado) !== prospectorId) return res.status(403).json({ msg: 'No tienes permiso para editar este prospecto' });
 
         await dbHelper.run(
             `UPDATE clientes 
-             SET nombres = ?, apellidoPaterno = ?, apellidoMaterno = ?, telefono = ?, correo = ?, empresa = ?, notas = ?, interes = ?, proximaLlamada = ?
-             WHERE id = ?`,
+             SET nombres = $1, apellidoPaterno = $2, apellidoMaterno = $3, telefono = $4, correo = $5, empresa = $6, notas = $7, interes = $8, proximaLlamada = $9
+             WHERE id = $10`,
             [
                 nombres.trim(),
                 (apellidoPaterno || '').trim(),
@@ -569,13 +567,13 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
 
         const cid = parseInt(clienteId);
         const closerIdNum = parseInt(closerId);
-        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [cid]);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [cid]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Cliente no encontrado' });
         }
 
         const prospectorId = parseInt(req.usuario.id);
-        if (cliente.prospectorAsignado !== prospectorId) {
+        if (parseInt(cliente.prospectorAsignado) !== prospectorId) {
             return res.status(403).json({ msg: 'No tienes permiso para agendar reunión con este cliente' });
         }
 
@@ -584,8 +582,8 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
         hist.push({ etapa: 'reunion_agendada', fecha: now, vendedor: prospectorId });
 
         await dbHelper.run(
-            `UPDATE clientes SET etapaEmbudo = ?, closerAsignado = ?, fechaTransferencia = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ?
-             WHERE id = ?`,
+            `UPDATE clientes SET etapaEmbudo = $1, closerAsignado = $2, fechaTransferencia = $3, fechaUltimaEtapa = $4, ultimaInteraccion = $5, historialEmbudo = $6
+             WHERE id = $7`,
             ['reunion_agendada', closerIdNum, now, now, now, JSON.stringify(hist), cid]
         );
 
@@ -596,7 +594,7 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
         let hangoutLink = null;
         try {
             const closerDetails = await dbHelper.getOne(
-                'SELECT email, googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = ?',
+                'SELECT email, googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = $1',
                 [closerIdNum]
             );
 
@@ -617,15 +615,14 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
 
                 client.on('tokens', async (tokens) => {
                     try {
-                        let updateStr = [];
-                        let params = [];
-                        if (tokens.refresh_token) { updateStr.push('googleRefreshToken = ?'); params.push(tokens.refresh_token); }
-                        if (tokens.access_token) { updateStr.push('googleAccessToken = ?'); params.push(tokens.access_token); }
-                        if (tokens.expiry_date) { updateStr.push('googleTokenExpiry = ?'); params.push(tokens.expiry_date); }
+                        const updates = {};
+                        if (tokens.refresh_token) updates.googleRefreshToken = tokens.refresh_token;
+                        if (tokens.access_token) updates.googleAccessToken = tokens.access_token;
+                        if (tokens.expiry_date) updates.googleTokenExpiry = tokens.expiry_date;
 
-                        if (updateStr.length > 0) {
-                            params.push(closerIdNum);
-                            await dbHelper.run(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`, params);
+                        if (Object.keys(updates).length > 0) {
+                            const { sql, params } = buildUpdate('usuarios', updates, { id: closerIdNum });
+                            await dbHelper.run(sql, params);
                         }
                     } catch (tokenUpdateError) {
                         console.error('Error al actualizar tokens de Google:', tokenUpdateError);
@@ -669,12 +666,12 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
 
         await dbHelper.run(
             `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas, cambioEtapa, etapaAnterior, etapaNueva)
-             VALUES (?, ?, ?, ?, ?, 'pendiente', ?, 1, 'en_contacto', 'reunion_agendada')`,
+             VALUES ($1, $2, $3, $4, $5, 'pendiente', $6, 1, 'en_contacto', 'reunion_agendada')`,
             ['cita', prospectorId, cid, fechaReunionISO, `Reunión agendada por prospector ${req.usuario.nombre} → Asignada a closer`, notas || '']
         );
 
-        const clienteActualizado = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [cid]);
-        const actividadRow = await dbHelper.getOne('SELECT * FROM actividades WHERE cliente = ? ORDER BY id DESC LIMIT 1', [cid]);
+        const clienteActualizado = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [cid]);
+        const actividadRow = await dbHelper.getOne('SELECT * FROM actividades WHERE cliente = $1 ORDER BY id DESC LIMIT 1', [cid]);
 
         res.json({
             msg: 'Reunión agendada exitosamente',
@@ -692,8 +689,8 @@ router.post('/agendar-reunion', [auth, esProspector], async (req, res) => {
 router.get('/estadisticas', [auth, esProspector], async (req, res) => {
     try {
         const prospectorId = parseInt(req.usuario.id);
-        const clientes = await dbHelper.getAll('SELECT * FROM clientes WHERE prospectorAsignado = ?', [prospectorId]);
-        const actividades = await dbHelper.getAll('SELECT * FROM actividades WHERE vendedor = ?', [prospectorId]);
+        const clientes = await dbHelper.getAll('SELECT * FROM clientes WHERE prospectorAsignado = $1', [prospectorId]);
+        const actividades = await dbHelper.getAll('SELECT * FROM actividades WHERE vendedor = $1', [prospectorId]);
 
         // Filtrar solo clientes activos (excluir perdidos y ventas ganadas)
         const clientesActivos = clientes.filter(c => 
@@ -736,12 +733,12 @@ router.post('/pasar-a-cliente/:id', [auth, esProspector], async (req, res) => {
         const clienteId = parseInt(req.params.id);
         const prospectorId = parseInt(req.usuario.id);
 
-        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [clienteId]);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [clienteId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
 
-        if (cliente.prospectorAsignado !== prospectorId) {
+        if (parseInt(cliente.prospectorAsignado) !== prospectorId) {
             return res.status(403).json({ msg: 'No tienes permiso para modificar este prospecto' });
         }
 
@@ -750,7 +747,7 @@ router.post('/pasar-a-cliente/:id', [auth, esProspector], async (req, res) => {
         // Registrar la actividad de conversión
         await dbHelper.run(
             `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             ['prospecto', prospectorId, clienteId, now, 'Prospecto convertido a cliente', 'exitoso', notas || 'Convertido a cliente']
         );
 
@@ -759,7 +756,7 @@ router.post('/pasar-a-cliente/:id', [auth, esProspector], async (req, res) => {
         hist.push({ etapa: 'venta_ganada', fecha: now, vendedor: prospectorId });
 
         await dbHelper.run(
-            'UPDATE clientes SET etapaEmbudo = ?, estado = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?',
+            'UPDATE clientes SET etapaEmbudo = $1, estado = $2, fechaUltimaEtapa = $3, ultimaInteraccion = $4, historialEmbudo = $5 WHERE id = $6',
             ['venta_ganada', 'ganado', now, now, JSON.stringify(hist), clienteId]
         );
 
@@ -777,12 +774,12 @@ router.post('/descartar-prospecto/:id', [auth, esProspector], async (req, res) =
         const clienteId = parseInt(req.params.id);
         const prospectorId = parseInt(req.usuario.id);
 
-        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = ?', [clienteId]);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [clienteId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
 
-        if (cliente.prospectorAsignado !== prospectorId) {
+        if (parseInt(cliente.prospectorAsignado) !== prospectorId) {
             return res.status(403).json({ msg: 'No tienes permiso para modificar este prospecto' });
         }
 
@@ -791,7 +788,7 @@ router.post('/descartar-prospecto/:id', [auth, esProspector], async (req, res) =
         // Registrar la actividad de descarte
         await dbHelper.run(
             `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             ['prospecto', prospectorId, clienteId, now, 'Prospecto descartado', 'fallido', notas || 'Descartado']
         );
 
@@ -800,7 +797,7 @@ router.post('/descartar-prospecto/:id', [auth, esProspector], async (req, res) =
         hist.push({ etapa: 'perdido', fecha: now, vendedor: prospectorId });
 
         await dbHelper.run(
-            'UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?',
+            'UPDATE clientes SET etapaEmbudo = $1, fechaUltimaEtapa = $2, ultimaInteraccion = $3, historialEmbudo = $4 WHERE id = $5',
             ['perdido', now, now, JSON.stringify(hist), clienteId]
         );
 
@@ -820,7 +817,7 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
         // Función auxiliar para obtener actividades en un período
         const getActividades = async (inicio, fin) => {
             const actividades = await dbHelper.getAll(
-                'SELECT * FROM actividades WHERE vendedor = $1 AND fecha >= ? AND fecha < ?',
+                'SELECT * FROM actividades WHERE vendedor = $1 AND fecha >= $2 AND fecha < $3',
                 [prospectorId, inicio.toISOString(), fin.toISOString()]
             );
             return actividades || [];
@@ -837,9 +834,9 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
         const finMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth(), 0, 23, 59, 59);
 
         // Clientes totales
-        const clientesTotalesRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ?', [prospectorId]);
+        const clientesTotalesRow = await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1', [prospectorId]);
         const clientesHoyRow = await dbHelper.getOne(
-            'SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND date(fechaRegistro) = date(?)',
+            'SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND fechaRegistro::date = $2::date',
             [prospectorId, hoy.toISOString()]
         );
         const ClientesTotales = clientesTotalesRow?.c || 0;
@@ -868,14 +865,14 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
 
         // Citas agendadas
         const citasAgendadasMesRow = await dbHelper.getOne(
-            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-             AND etapaEmbudo = 'reunion_agendada' AND date(fechaUltimaEtapa) >= date(?) AND date(fechaUltimaEtapa) <= date(?)`,
+            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 
+             AND etapaEmbudo = 'reunion_agendada' AND fechaUltimaEtapa >= $2 AND fechaUltimaEtapa <= $3`,
             [prospectorId, inicioMes.toISOString(), finMes.toISOString()]
         );
 
         const citasAgendadasMesAnteriorRow = await dbHelper.getOne(
-            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-             AND etapaEmbudo = 'reunion_agendada' AND date(fechaUltimaEtapa) >= date(?) AND date(fechaUltimaEtapa) <= date(?)`,
+            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 
+             AND etapaEmbudo = 'reunion_agendada' AND fechaUltimaEtapa >= $2 AND fechaUltimaEtapa <= $3`,
             [prospectorId, inicioMesAnterior.toISOString(), finMesAnterior.toISOString()]
         );
 
@@ -884,18 +881,18 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
 
         // Transferencias
         const transferidosMesRow = await dbHelper.getOne(
-            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-             AND closerAsignado IS NOT NULL AND date(fechaTransferencia) >= date(?) AND date(fechaTransferencia) <= date(?)`,
+            `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 
+             AND closerAsignado IS NOT NULL AND fechaTransferencia >= $2 AND fechaTransferencia <= $3`,
             [prospectorId, inicioMes.toISOString(), finMes.toISOString()]
         );
         const transferidosMes = transferidosMesRow?.c || 0;
 
         // Distribución actual
         const distribucion = {
-            prospecto_nuevo: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?', [prospectorId, 'prospecto_nuevo']))?.c || 0,
-            en_contacto: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?', [prospectorId, 'en_contacto']))?.c || 0,
-            reunion_agendada: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND etapaEmbudo = ?', [prospectorId, 'reunion_agendada']))?.c || 0,
-            transferidos: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? AND closerAsignado IS NOT NULL', [prospectorId]))?.c || 0
+            prospecto_nuevo: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2', [prospectorId, 'prospecto_nuevo']))?.c || 0,
+            en_contacto: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2', [prospectorId, 'en_contacto']))?.c || 0,
+            reunion_agendada: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND etapaEmbudo = $2', [prospectorId, 'reunion_agendada']))?.c || 0,
+            transferidos: (await dbHelper.getOne('SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 AND closerAsignado IS NOT NULL', [prospectorId]))?.c || 0
         };
 
         // Tasas de conversión
@@ -925,8 +922,8 @@ router.get('/estadisticas', [auth, esProspector], async (req, res) => {
             const llamadasSemanaI = actividadesSemanaI.filter(a => a.tipo === 'llamada').length;
             const contactosSemanaI = actividadesSemanaI.filter(a => a.tipo === 'llamada' && a.resultado === 'exitoso').length;
             const citasSemanaIRow = await dbHelper.getOne(
-                `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = ? 
-                 AND etapaEmbudo = 'reunion_agendada' AND fechaUltimaEtapa >= ? AND fechaUltimaEtapa <= ?`,
+                `SELECT COUNT(*) as c FROM clientes WHERE prospectorAsignado = $1 
+                 AND etapaEmbudo = 'reunion_agendada' AND fechaUltimaEtapa >= $2 AND fechaUltimaEtapa <= $3`,
                 [prospectorId, inicioSemanaI.toISOString(), finSemanaI.toISOString()]
             );
             const citasSemanaI = citasSemanaIRow?.c || 0;

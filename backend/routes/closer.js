@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const dbHelper = require('../config/db-helper');
 const { auth } = require('../middleware/auth');
 const { toMongoFormat, toMongoFormatMany } = require('../lib/helpers');
+const { buildUpdate } = require('../lib/query-builder');
 
 const esCloser = (req, res, next) => {
     if (req.usuario.rol !== 'closer') {
@@ -14,7 +15,7 @@ const esCloser = (req, res, next) => {
 router.get('/dashboard', [auth, esCloser], async (req, res) => {
     try {
         const closerId = parseInt(req.usuario.id);
-        const clientes = db.prepare('SELECT * FROM clientes WHERE closerAsignado = ?').all(closerId);
+        const clientes = await dbHelper.getAll('SELECT * FROM clientes WHERE closerAsignado = $1', [closerId]);
 
         const embudo = {
             total: clientes.length,
@@ -82,11 +83,15 @@ router.get('/dashboard', [auth, esCloser], async (req, res) => {
         hoyFinDate.setHours(23, 59, 59, 999);
         const hoyFin = hoyFinDate.toISOString();
 
-        const reunionesHoy = db.prepare('SELECT * FROM actividades WHERE vendedor = ? AND tipo = ? AND fecha >= ? AND fecha <= ?')
-            .all(closerId, 'cita', hoyInicio, hoyFin);
+        const reunionesHoy = await dbHelper.getAll(
+            'SELECT * FROM actividades WHERE vendedor = $1 AND tipo = $2 AND fecha >= $3 AND fecha <= $4',
+            [closerId, 'cita', hoyInicio, hoyFin]
+        );
 
-        const actividadesHoy = db.prepare('SELECT * FROM actividades WHERE vendedor = ? AND fecha >= ? AND fecha <= ?')
-            .all(closerId, hoyInicio, hoyFin);
+        const actividadesHoy = await dbHelper.getAll(
+            'SELECT * FROM actividades WHERE vendedor = $1 AND fecha >= $2 AND fecha <= $3',
+            [closerId, hoyInicio, hoyFin]
+        );
 
         const reunionesRealizadasHoy = actividadesHoy.filter(a => a.tipo === 'cita' && a.resultado !== 'pendiente').length;
         const propuestasHoy = actividadesHoy.filter(a => a.descripcion && a.descripcion.toLowerCase().includes('cotización')).length;
@@ -96,8 +101,8 @@ router.get('/dashboard', [auth, esCloser], async (req, res) => {
         inicioMesDate.setHours(0, 0, 0, 0);
         const inicioMes = inicioMesDate.toISOString();
 
-        const ventasMes = db.prepare('SELECT * FROM ventas WHERE vendedor = ? AND fecha >= ?').all(closerId, inicioMes);
-        const ventasHoy = db.prepare('SELECT * FROM ventas WHERE vendedor = ? AND fecha >= ? AND fecha <= ?').all(closerId, hoyInicio, hoyFin);
+        const ventasMes = await dbHelper.getAll('SELECT * FROM ventas WHERE vendedor = $1 AND fecha >= $2', [closerId, inicioMes]);
+        const ventasHoy = await dbHelper.getAll('SELECT * FROM ventas WHERE vendedor = $1 AND fecha >= $2 AND fecha <= $3', [closerId, hoyInicio, hoyFin]);
         const montoTotalMes = ventasMes.reduce((sum, v) => sum + (v.monto || 0), 0);
 
         const tasasConversion = {
@@ -128,14 +133,14 @@ router.get('/calendario', [auth, esCloser], async (req, res) => {
         const closerId = parseInt(req.usuario.id);
         
         // Obtener todas las citas pendientes de la BD
-        const rows = db.prepare(`
+        const rows = await dbHelper.getAll(`
             SELECT a.*, c.nombres as c_nombres, c.apellidoPaterno as c_apellido, c.empresa as c_empresa, c.telefono as c_telefono, c.correo as c_correo, c.etapaEmbudo as c_etapa,
             u.nombre as v_nombre FROM actividades a
             JOIN clientes c ON a.cliente = c.id
             JOIN usuarios u ON a.vendedor = u.id
-            WHERE c.closerAsignado = ? AND a.tipo = ? AND a.resultado = 'pendiente'
+            WHERE c.closerAsignado = $1 AND a.tipo = $2 AND a.resultado = 'pendiente'
             ORDER BY a.fecha ASC
-        `).all(closerId, 'cita');
+        `, [closerId, 'cita']);
 
         // Filtrar citas que ya pasaron automáticamente
         const ahora = new Date();
@@ -151,13 +156,15 @@ router.get('/calendario', [auth, esCloser], async (req, res) => {
         // Marcar como fallidas las citas que ya pasaron
         const citasPasadas = rows.filter(r => new Date(r.fecha) < ahora);
         for (const cita of citasPasadas) {
-            db.prepare(`UPDATE actividades SET resultado = 'fallido', notas = COALESCE(notas || ' ', '') || '[Auto] Cita pasada sin registrar' WHERE id = ?`)
-                .run(cita.id);
+            await dbHelper.run(
+                        `UPDATE actividades SET resultado = 'fallido', notas = COALESCE(notas || ' ', '') || '[Auto] Cita pasada sin registrar' WHERE id = $1`,
+                        [cita.id]
+            );
         }
 
         // Intentar sincronizar con Google Calendar si está conectado
         try {
-            const usuario = db.prepare('SELECT googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = ?').get(closerId);
+            const usuario = await dbHelper.getOne('SELECT googleRefreshToken, googleAccessToken, googleTokenExpiry FROM usuarios WHERE id = $1', [closerId]);
             
             if (usuario && (usuario.googleRefreshToken || usuario.googleAccessToken)) {
                 const { OAuth2Client } = require('google-auth-library');
@@ -175,16 +182,15 @@ router.get('/calendario', [auth, esCloser], async (req, res) => {
                 });
 
                 // Actualizar tokens si se refrescan
-                client.on('tokens', (tokens) => {
-                    let updateStr = [];
-                    let params = [];
-                    if (tokens.refresh_token) { updateStr.push('googleRefreshToken = ?'); params.push(tokens.refresh_token); }
-                    if (tokens.access_token) { updateStr.push('googleAccessToken = ?'); params.push(tokens.access_token); }
-                    if (tokens.expiry_date) { updateStr.push('googleTokenExpiry = ?'); params.push(tokens.expiry_date); }
+                client.on('tokens', async (tokens) => {
+                    const updates = {};
+                    if (tokens.refresh_token) updates.googleRefreshToken = tokens.refresh_token;
+                    if (tokens.access_token) updates.googleAccessToken = tokens.access_token;
+                    if (tokens.expiry_date) updates.googleTokenExpiry = tokens.expiry_date;
 
-                    if (updateStr.length > 0) {
-                        params.push(closerId);
-                        db.prepare(`UPDATE usuarios SET ${updateStr.join(', ')} WHERE id = ?`).run(...params);
+                    if (Object.keys(updates).length > 0) {
+                        const { sql, params } = buildUpdate('usuarios', updates, { id: closerId });
+                        await dbHelper.run(sql, params);
                     }
                 });
 
@@ -222,8 +228,10 @@ router.get('/calendario', [auth, esCloser], async (req, res) => {
                         reunionesActualizadas.push(reunion);
                     } else {
                         // La cita fue eliminada de Google Calendar, marcarla como cancelada
-                        db.prepare(`UPDATE actividades SET resultado = 'fallido', notas = COALESCE(notas || ' ', '') || '[Sync] Eliminada de Google Calendar' WHERE id = ?`)
-                            .run(reunion.id || reunion._id);
+                        await dbHelper.run(
+                            `UPDATE actividades SET resultado = 'fallido', notas = COALESCE(notas || ' ', '') || '[Sync] Eliminada de Google Calendar' WHERE id = $1`,
+                            [reunion.id || reunion._id]
+                        );
                     }
                 }
 
@@ -244,11 +252,11 @@ router.get('/calendario', [auth, esCloser], async (req, res) => {
 router.get('/reuniones-pendientes', [auth, esCloser], async (req, res) => {
     try {
         const closerId = parseInt(req.usuario.id);
-        const rows = db.prepare(`
+        const rows = await dbHelper.getAll(`
             SELECT c.*, u.nombre as prospectorNombre FROM clientes c
             LEFT JOIN usuarios u ON c.prospectorAsignado = u.id
-            WHERE c.closerAsignado = ? AND c.etapaEmbudo = ?
-        `).all(closerId, 'reunion_agendada');
+            WHERE c.closerAsignado = $1 AND c.etapaEmbudo = $2
+        `, [closerId, 'reunion_agendada']);
         const clientes = rows.map(r => {
             const { prospectorNombre, ...c } = r;
             const out = toMongoFormat(c);
@@ -264,12 +272,12 @@ router.get('/reuniones-pendientes', [auth, esCloser], async (req, res) => {
 router.get('/prospectos', [auth, esCloser], async (req, res) => {
     try {
         const closerId = parseInt(req.usuario.id);
-        const rows = db.prepare(`
+        const rows = await dbHelper.getAll(`
             SELECT c.*, u.nombre as prospectorNombre FROM clientes c
             LEFT JOIN usuarios u ON c.prospectorAsignado = u.id
-            WHERE c.closerAsignado = ? AND c.etapaEmbudo != ?
+            WHERE c.closerAsignado = $1 AND c.etapaEmbudo != $2
             ORDER BY c.fechaTransferencia DESC
-        `).all(closerId, 'venta_ganada');
+        `, [closerId, 'venta_ganada']);
         res.json(rows.map(r => {
             const { prospectorNombre, ...c } = r;
             const out = toMongoFormat(c);
@@ -285,12 +293,12 @@ router.get('/prospectos', [auth, esCloser], async (req, res) => {
 router.get('/clientes-ganados', [auth, esCloser], async (req, res) => {
     try {
         const closerId = parseInt(req.usuario.id);
-        const rows = db.prepare(`
+        const rows = await dbHelper.getAll(`
             SELECT c.*, u.nombre as prospectorNombre FROM clientes c
             LEFT JOIN usuarios u ON c.prospectorAsignado = u.id
-            WHERE c.closerAsignado = ? AND c.etapaEmbudo = ?
+            WHERE c.closerAsignado = $1 AND c.etapaEmbudo = $2
             ORDER BY c.fechaUltimaEtapa DESC
-        `).all(closerId, 'venta_ganada');
+        `, [closerId, 'venta_ganada']);
         res.json(rows.map(r => {
             const { prospectorNombre, ...c } = r;
             const out = toMongoFormat(c);
@@ -313,22 +321,20 @@ router.post('/crear-prospecto', [auth, esCloser], async (req, res) => {
         const closerId = parseInt(req.usuario.id);
         const now = new Date().toISOString();
 
-        const stmt = db.prepare(`
-            INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, notas, closerAsignado, etapaEmbudo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'prospecto_nuevo')
-        `);
-        const result = stmt.run(
-            nombres.trim(),
-            (apellidoPaterno || '').trim(),
-            (apellidoMaterno || '').trim(),
-            String(telefono).trim(),
-            String(correo || '').trim().toLowerCase(),
-            (empresa || '').trim(),
-            (notas || '').trim(),
-            closerId
+        const row = await dbHelper.getOne(
+            `INSERT INTO clientes (nombres, apellidoPaterno, apellidoMaterno, telefono, correo, empresa, notas, closerAsignado, etapaEmbudo)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'prospecto_nuevo') RETURNING *`,
+            [
+                nombres.trim(),
+                (apellidoPaterno || '').trim(),
+                (apellidoMaterno || '').trim(),
+                String(telefono).trim(),
+                String(correo || '').trim().toLowerCase(),
+                (empresa || '').trim(),
+                (notas || '').trim(),
+                closerId
+            ]
         );
-
-        const row = db.prepare('SELECT * FROM clientes WHERE id = ?').get(result.lastInsertRowid);
         const cliente = toMongoFormat(row);
         if (cliente) cliente.closerAsignado = { nombre: req.usuario.nombre };
 
@@ -354,7 +360,7 @@ router.post('/registrar-actividad', [auth, esCloser], async (req, res) => {
         }
 
         const cid = parseInt(clienteId);
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(cid);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [cid]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Cliente no encontrado' });
         }
@@ -362,8 +368,8 @@ router.post('/registrar-actividad', [auth, esCloser], async (req, res) => {
 
         // MEJORADO: Validar que el closer esté asignado O que sea un prospector registrando
         // (permitir que prospector registre actividades de sus propios clientes)
-        const esCloserAsignado = cliente.closerAsignado === closerId;
-        const esProspectorDelCliente = cliente.prospectorAsignado === closerId && String(req.usuario.rol).toLowerCase() === 'prospector';
+        const esCloserAsignado = parseInt(cliente.closerAsignado) === closerId;
+        const esProspectorDelCliente = parseInt(cliente.prospectorAsignado) === closerId && String(req.usuario.rol).toLowerCase() === 'prospector';
 
         if (!esCloserAsignado && !esProspectorDelCliente) {
             return res.status(403).json({ msg: 'No tienes permiso para registrar actividades de este cliente' });
@@ -372,15 +378,16 @@ router.post('/registrar-actividad', [auth, esCloser], async (req, res) => {
         const resultadoFinal = resultado && resultadosValidos.includes(resultado) ? resultado : 'pendiente';
         const fechaActividad = tipo === 'cita' && fechaCita ? new Date(fechaCita).toISOString() : new Date().toISOString();
 
-        const ins = db.prepare(`
-            INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(tipo, closerId, cid, fechaActividad, descripcion || `${tipo} registrada`, resultadoFinal, notas || '');
+        await dbHelper.run(
+            `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [tipo, closerId, cid, fechaActividad, descripcion || `${tipo} registrada`, resultadoFinal, notas || '']
+        );
 
         const now = new Date().toISOString();
-        db.prepare('UPDATE clientes SET ultimaInteraccion = ? WHERE id = ?').run(now, cid);
+        await dbHelper.run('UPDATE clientes SET ultimaInteraccion = $1 WHERE id = $2', [now, cid]);
 
-        const actRow = db.prepare('SELECT * FROM actividades WHERE id = ?').get(ins.lastInsertRowid);
+        const actRow = await dbHelper.getOne('SELECT * FROM actividades ORDER BY id DESC LIMIT 1');
         const actividad = toMongoFormat(actRow);
         if (actividad) actividad.cliente = { nombres: cliente.nombres, apellidoPaterno: cliente.apellidoPaterno, empresa: cliente.empresa };
 
@@ -399,25 +406,25 @@ router.get('/prospecto/:id/historial-completo', [auth, esCloser], async (req, re
         const usuarioId = parseInt(req.usuario.id);
 
         // Obtener cliente
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(prospectoId);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [prospectoId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
 
         // Validar permisos: solo el closer o prospector asignado pueden ver
-        const esCloserAsignado = cliente.closerAsignado === usuarioId;
+        const esCloserAsignado = parseInt(cliente.closerAsignado) === usuarioId;
         if (!esCloserAsignado) {
             return res.status(403).json({ msg: 'No tienes permiso para ver este historial' });
         }
 
         // Obtener TODAS las actividades del cliente (de prospector Y closer)
-        const actividades = db.prepare(`
+        const actividades = await dbHelper.getAll(`
             SELECT a.*, u.nombre as vendedorNombre, u.rol as vendedorRol
             FROM actividades a
             LEFT JOIN usuarios u ON a.vendedor = u.id
-            WHERE a.cliente = ?
+            WHERE a.cliente = $1
             ORDER BY a.fecha ASC
-        `).all(prospectoId);
+        `, [prospectoId]);
 
         // Obtener historial del embudo
         const historialEmbudo = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
@@ -491,11 +498,11 @@ router.get('/prospectos/:id/actividades', auth, async (req, res) => {
         const prospectoId = parseInt(req.params.id);
         const closerId = parseInt(req.usuario.id);
 
-        const cliente = db.prepare('SELECT id, closerAsignado FROM clientes WHERE id = ?').get(prospectoId);
+        const cliente = await dbHelper.getOne('SELECT id, closerAsignado FROM clientes WHERE id = $1', [prospectoId]);
         if (!cliente) return res.status(404).json({ msg: 'Prospecto no encontrado' });
-        if (cliente.closerAsignado !== closerId) return res.status(403).json({ msg: 'No tienes permiso' });
+        if (parseInt(cliente.closerAsignado) !== closerId) return res.status(403).json({ msg: 'No tienes permiso' });
 
-        const acts = db.prepare('SELECT a.*, u.nombre as vendedorNombre FROM actividades a LEFT JOIN usuarios u ON a.vendedor = u.id WHERE a.cliente = ? ORDER BY a.fecha DESC').all(prospectoId);
+        const acts = await dbHelper.getAll('SELECT a.*, u.nombre as vendedorNombre FROM actividades a LEFT JOIN usuarios u ON a.vendedor = u.id WHERE a.cliente = $1 ORDER BY a.fecha DESC', [prospectoId]);
         const actividades = acts.map(a => {
             const { vendedorNombre, ...act } = a;
             const out = toMongoFormat(act);
@@ -519,8 +526,8 @@ router.post('/registrar-reunion', [auth, esCloser], async (req, res) => {
 
         const cid = parseInt(clienteId);
         const closerId = parseInt(req.usuario.id);
-        const c = db.prepare('SELECT * FROM clientes WHERE id = ?').get(cid);
-        if (!c || c.closerAsignado !== closerId) return res.status(403).json({ msg: 'No autorizado' });
+        const c = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [cid]);
+        if (!c || parseInt(c.closerAsignado) !== closerId) return res.status(403).json({ msg: 'No autorizado' });
 
         // Mapa de resultado → etapa del embudo
         const etapaMap = {
@@ -551,19 +558,25 @@ router.post('/registrar-reunion', [auth, esCloser], async (req, res) => {
             : etapaNueva === 'perdido' ? 'perdido'
                 : 'proceso';
 
-        db.prepare('UPDATE clientes SET etapaEmbudo = ?, estado = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?')
-            .run(etapaNueva, estado, now, now, JSON.stringify(hist), cid);
+        await dbHelper.run(
+            'UPDATE clientes SET etapaEmbudo = $1, estado = $2, fechaUltimaEtapa = $3, ultimaInteraccion = $4, historialEmbudo = $5 WHERE id = $6',
+            [etapaNueva, estado, now, now, JSON.stringify(hist), cid]
+        );
 
         const resStatus = resultado === 'venta' ? 'exitoso' : (resultado === 'no_asistio' || resultado === 'no_venta' ? 'fallido' : 'exitoso');
 
         // Cerrar citas pendientes previas para que no salgan en el dashboard
-        db.prepare(`UPDATE actividades SET resultado = ? WHERE cliente = ? AND tipo = 'cita' AND resultado = 'pendiente'`)
-            .run(resStatus, cid);
+        await dbHelper.run(
+            `UPDATE actividades SET resultado = $1 WHERE cliente = $2 AND tipo = 'cita' AND resultado = 'pendiente'`,
+            [resStatus, cid]
+        );
 
-        db.prepare('INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas) VALUES (?, ?, ?, ?, ?, ?, ?)')
-            .run('cita', closerId, cid, now, descripcion, resStatus, notas || '');
+        await dbHelper.run(
+            'INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            ['cita', closerId, cid, now, descripcion, resStatus, notas || '']
+        );
 
-        const row = db.prepare('SELECT * FROM clientes WHERE id = ?').get(cid);
+        const row = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [cid]);
         res.json({ msg: 'Reunión registrada', cliente: toMongoFormat(row) || row });
     } catch (error) {
         console.error('Error al registrar reunión:', error);
@@ -582,23 +595,24 @@ router.put('/prospectos/:id/editar', [auth, esCloser], async (req, res) => {
             return res.status(400).json({ msg: 'Nombres y teléfono son requeridos' });
         }
 
-        const cliente = db.prepare('SELECT id, closerAsignado FROM clientes WHERE id = ?').get(prospectoId);
+        const cliente = await dbHelper.getOne('SELECT id, closerAsignado FROM clientes WHERE id = $1', [prospectoId]);
         if (!cliente) return res.status(404).json({ msg: 'Prospecto no encontrado' });
-        if (cliente.closerAsignado !== closerId) return res.status(403).json({ msg: 'No tienes permiso para editar este prospecto' });
+        if (parseInt(cliente.closerAsignado) !== closerId) return res.status(403).json({ msg: 'No tienes permiso para editar este prospecto' });
 
-        db.prepare(`
-            UPDATE clientes 
-            SET nombres = ?, apellidoPaterno = ?, apellidoMaterno = ?, telefono = ?, correo = ?, empresa = ?, notas = ?
-            WHERE id = ?
-        `).run(
-            nombres.trim(),
-            (apellidoPaterno || '').trim(),
-            (apellidoMaterno || '').trim(),
-            String(telefono).trim(),
-            String(correo || '').trim().toLowerCase(),
-            (empresa || '').trim(),
-            (notas || '').trim(),
-            prospectoId
+        await dbHelper.run(
+            `UPDATE clientes 
+             SET nombres = $1, apellidoPaterno = $2, apellidoMaterno = $3, telefono = $4, correo = $5, empresa = $6, notas = $7
+             WHERE id = $8`,
+            [
+                nombres.trim(),
+                (apellidoPaterno || '').trim(),
+                (apellidoMaterno || '').trim(),
+                String(telefono).trim(),
+                String(correo || '').trim().toLowerCase(),
+                (empresa || '').trim(),
+                (notas || '').trim(),
+                prospectoId
+            ]
         );
 
         res.json({ msg: 'Prospecto actualizado exitosamente' });
@@ -615,29 +629,32 @@ router.post('/pasar-a-cliente/:id', [auth, esCloser], async (req, res) => {
         const clienteId = parseInt(req.params.id);
         const closerId = parseInt(req.usuario.id);
 
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(clienteId);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [clienteId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
 
-        if (cliente.closerAsignado !== closerId) {
+        if (parseInt(cliente.closerAsignado) !== closerId) {
             return res.status(403).json({ msg: 'No tienes permiso para modificar este prospecto' });
         }
 
         const now = new Date().toISOString();
 
         // Registrar la actividad de conversión
-        db.prepare(`
-            INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run('prospecto', closerId, clienteId, now, 'Prospecto convertido a cliente', 'exitoso', notas || 'Convertido a cliente');
+        await dbHelper.run(
+            `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            ['prospecto', closerId, clienteId, now, 'Prospecto convertido a cliente', 'exitoso', notas || 'Convertido a cliente']
+        );
 
         // Actualizar etapa del prospecto
         const hist = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
         hist.push({ etapa: 'venta_ganada', fecha: now, vendedor: closerId });
 
-        db.prepare('UPDATE clientes SET etapaEmbudo = ?, estado = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?')
-            .run('venta_ganada', 'ganado', now, now, JSON.stringify(hist), clienteId);
+        await dbHelper.run(
+            'UPDATE clientes SET etapaEmbudo = $1, estado = $2, fechaUltimaEtapa = $3, ultimaInteraccion = $4, historialEmbudo = $5 WHERE id = $6',
+            ['venta_ganada', 'ganado', now, now, JSON.stringify(hist), clienteId]
+        );
 
         res.json({ msg: '✓ Prospecto convertido a cliente' });
     } catch (error) {
@@ -653,29 +670,32 @@ router.post('/descartar-prospecto/:id', [auth, esCloser], async (req, res) => {
         const clienteId = parseInt(req.params.id);
         const closerId = parseInt(req.usuario.id);
 
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(clienteId);
+        const cliente = await dbHelper.getOne('SELECT * FROM clientes WHERE id = $1', [clienteId]);
         if (!cliente) {
             return res.status(404).json({ msg: 'Prospecto no encontrado' });
         }
 
-        if (cliente.closerAsignado !== closerId) {
+        if (parseInt(cliente.closerAsignado) !== closerId) {
             return res.status(403).json({ msg: 'No tienes permiso para modificar este prospecto' });
         }
 
         const now = new Date().toISOString();
 
         // Registrar la actividad de descarte
-        db.prepare(`
-            INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run('prospecto', closerId, clienteId, now, 'Prospecto descartado', 'fallido', notas || 'Descartado');
+        await dbHelper.run(
+            `INSERT INTO actividades (tipo, vendedor, cliente, fecha, descripcion, resultado, notas)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            ['prospecto', closerId, clienteId, now, 'Prospecto descartado', 'fallido', notas || 'Descartado']
+        );
 
         // Actualizar etapa del prospecto
         const hist = cliente.historialEmbudo ? JSON.parse(cliente.historialEmbudo) : [];
         hist.push({ etapa: 'perdido', fecha: now, vendedor: closerId });
 
-        db.prepare('UPDATE clientes SET etapaEmbudo = ?, fechaUltimaEtapa = ?, ultimaInteraccion = ?, historialEmbudo = ? WHERE id = ?')
-            .run('perdido', now, now, JSON.stringify(hist), clienteId);
+        await dbHelper.run(
+            'UPDATE clientes SET etapaEmbudo = $1, fechaUltimaEtapa = $2, ultimaInteraccion = $3, historialEmbudo = $4 WHERE id = $5',
+            ['perdido', now, now, JSON.stringify(hist), clienteId]
+        );
 
         res.json({ msg: '✓ Prospecto descartado' });
     } catch (error) {
@@ -697,25 +717,30 @@ router.post('/marcar-evento-completado', [auth, esCloser], async (req, res) => {
         const closerId = parseInt(req.usuario.id);
         const now = new Date().toISOString();
 
-        // Crear tabla si no existe
-        db.exec(`
+        // Crear tabla si no existe (PostgreSQL)
+        await dbHelper.run(`
             CREATE TABLE IF NOT EXISTS google_events_completed (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 googleEventId TEXT NOT NULL UNIQUE,
                 closerId INTEGER NOT NULL,
                 clienteId INTEGER,
                 resultado TEXT,
                 notas TEXT,
-                fechaCompletado TEXT DEFAULT (datetime('now'))
+                fechaCompletado TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
         // Guardar o actualizar
-        db.prepare(`
-            INSERT OR REPLACE INTO google_events_completed 
-            (googleEventId, closerId, clienteId, resultado, notas) 
-            VALUES (?, ?, ?, ?, ?)
-        `).run(googleEventId, closerId, clienteId || null, resultado || null, notas || null);
+        await dbHelper.run(
+            `INSERT INTO google_events_completed (googleEventId, closerId, clienteId, resultado, notas)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (googleEventId) DO UPDATE SET
+                closerId = EXCLUDED.closerId,
+                clienteId = EXCLUDED.clienteId,
+                resultado = EXCLUDED.resultado,
+                notas = EXCLUDED.notas`,
+            [googleEventId, closerId, clienteId || null, resultado || null, notas || null]
+        );
 
         console.log(`✅ Evento ${googleEventId} marcado como completado en BD`);
 
@@ -734,9 +759,10 @@ router.get('/google-events-completados', [auth, esCloser], async (req, res) => {
 
         // Tabla podría no existir aún
         try {
-            const completados = db.prepare(`
-                SELECT googleEventId, resultado FROM google_events_completed WHERE closerId = ?
-            `).all(closerId);
+            const completados = await dbHelper.getAll(
+                'SELECT googleEventId, resultado FROM google_events_completed WHERE closerId = $1',
+                [closerId]
+            );
             res.json(completados);
         } catch (err) {
             // Tabla no existe aún
